@@ -57,10 +57,10 @@ type PinnedPuppy = {
   image: string;
 };
 
-const pinnedPuppies: PinnedPuppy[] = [
+const dogPinned: PinnedPuppy[] = [
   {
     id: "pup-blue",
-    name: "Blue Collar Male",
+    name: "Blue Collar Male — Frenchie",
     breed: "French Bulldog",
     price: 2800,
     deposit: 250,
@@ -70,7 +70,7 @@ const pinnedPuppies: PinnedPuppy[] = [
   },
   {
     id: "pup-red",
-    name: "Red Collar Female",
+    name: "Red Collar Female — Frenchie",
     breed: "French Bulldog",
     price: 3200,
     deposit: 250,
@@ -80,13 +80,46 @@ const pinnedPuppies: PinnedPuppy[] = [
   },
   {
     id: "pup-green",
-    name: "Green Collar Male",
+    name: "Green Collar Male — Frenchie",
     breed: "French Bulldog",
     price: 2600,
     deposit: 250,
     microchip: "985 141 002 883 067",
     status: "On hold",
     image: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=800&q=60",
+  },
+];
+
+const catPinned: PinnedPuppy[] = [
+  {
+    id: "kit-silver",
+    name: "Silver Tabby Female — Maine Coon",
+    breed: "Maine Coon",
+    price: 2200,
+    deposit: 250,
+    microchip: "985 141 004 771 018",
+    status: "Available",
+    image: "https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&w=800&q=60",
+  },
+  {
+    id: "kit-blue",
+    name: "Blue Mitted Male — Ragdoll",
+    breed: "Ragdoll",
+    price: 2400,
+    deposit: 250,
+    microchip: "985 141 004 771 022",
+    status: "Available",
+    image: "https://images.unsplash.com/photo-1519052537078-e6302a4968d4?auto=format&fit=crop&w=800&q=60",
+  },
+  {
+    id: "kit-lilac",
+    name: "Lilac Point Female — Ragdoll",
+    breed: "Ragdoll",
+    price: 2600,
+    deposit: 250,
+    microchip: "985 141 004 771 034",
+    status: "On hold",
+    image: "https://images.unsplash.com/photo-1606214174585-fe31582dc6ee?auto=format&fit=crop&w=800&q=60",
   },
 ];
 
@@ -130,6 +163,10 @@ const chatUsers = ["Kai", "Zoë", "Sam", "Riley", "Jordan", "Wren", "Ivy", "Theo
 
 function LiveView() {
   const { stream } = Route.useLoaderData();
+  const isCat = stream.species === "cat";
+  const pinnedPuppies = isCat ? catPinned : dogPinned;
+  const registryLabel = stream.registry ?? (isCat ? "TICA Registered" : "USDA Licensed");
+  const kindLabel = isCat ? "kittens" : "puppies";
   const [chat, setChat] = useState<ChatMsg[]>(seedChat);
   const [likes, setLikes] = useState(1284);
   const [liked, setLiked] = useState(false);
@@ -194,12 +231,12 @@ function LiveView() {
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-1">
-                  <p className="truncate text-sm font-semibold text-white">StoneHighlandFrenchies</p>
+                  <p className="truncate text-sm font-semibold text-white">{stream.breeder}</p>
                   <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-trust" />
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="inline-flex items-center gap-1 rounded-full bg-trust/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-trust-foreground">
-                    <ShieldCheck className="h-2.5 w-2.5" /> USDA Licensed
+                    <ShieldCheck className="h-2.5 w-2.5" /> {registryLabel}
                   </span>
                 </div>
               </div>
@@ -241,7 +278,7 @@ function LiveView() {
               <p className="text-[11px] font-semibold uppercase tracking-wider opacity-80">
                 On camera now
               </p>
-              <span className="text-[11px] opacity-70">{pinnedPuppies.length} puppies</span>
+              <span className="text-[11px] opacity-70">{pinnedPuppies.length} {kindLabel}</span>
             </div>
             <div className="-mx-3 flex snap-x snap-mandatory gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {pinnedPuppies.map((p) => (

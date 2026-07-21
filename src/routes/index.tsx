@@ -8,16 +8,16 @@ import { breeders, litters, streams } from "@/lib/mock-data";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "LivePaws — Watch litters live, meet ethical breeders" },
+      { title: "LivePaws — Meet your next family member live" },
       {
         name: "description",
         content:
-          "The live-streamed pet marketplace. Watch verified breeders raise puppies in real time and reserve yours with secure escrow.",
+          "The live-streamed pet marketplace. Watch verified breeders and catteries raise puppies and kittens in real time, and reserve yours with escrow-backed deposits.",
       },
-      { property: "og:title", content: "LivePaws — Watch litters live" },
+      { property: "og:title", content: "LivePaws — Puppies and kittens, live" },
       {
         property: "og:description",
-        content: "Live-streamed litters from verified breeders. Reserve with escrow-backed deposits.",
+        content: "Live-streamed puppies and kittens from verified breeders and catteries. Reserve with escrow-backed deposits.",
       },
     ],
   }),
@@ -41,11 +41,12 @@ function Landing() {
               </span>
             </div>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-              Meet your puppy <span className="text-primary">before</span> you meet your puppy.
+              Meet your next <span className="text-primary">family member</span> live before they come home.
             </h1>
             <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              LivePaws streams litters in real time from verified breeders. Watch, chat, and reserve
-              with a refundable deposit held in escrow — the trustworthy way to bring home a pup.
+              LivePaws streams litters of puppies and kittens in real time from verified breeders and
+              catteries. Watch, chat, and reserve with a refundable deposit held in escrow — the
+              trustworthy way to bring home your next companion.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild size="lg">
