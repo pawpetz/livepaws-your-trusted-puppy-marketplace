@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ShieldCheck,
   DollarSign,
@@ -19,46 +19,20 @@ import {
 } from 'lucide-react';
 import { SiteShell } from '@/components/site-shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { addPet, confirmReceipt, listPets, removePet, type Pet, type Species } from '@/lib/pets-store';
 
 export const Route = createFileRoute('/breeder/dashboard')({
   component: BreederDashboardPage,
 });
 
-/* ------------------------------------------------------------
-   Data model — pets are the single source of truth.
-   Escrow status lives on the pet record itself, so the
-   "Listings" tab and "Escrow" tab can never drift out of sync.
------------------------------------------------------------- */
+const BREEDER_NAME = 'Oakwood Paws & Cattery Studio';
 
-type Species = 'Dog' | 'Cat';
-type SaleType = 'full' | 'deposit';
-// Available -> nothing sold yet
-// Reserved  -> deposit paid, balance still due before pickup
-// Sold      -> full amount paid, awaiting pickup/delivery confirmation
-// Closed    -> buyer confirmed receipt, escrow released to breeder
-type PetStatus = 'Available' | 'Reserved' | 'Sold' | 'Closed';
-
-type Pet = {
-  id: string;
-  species: Species;
-  name: string;
-  sex: 'Female' | 'Male';
-  collar: string;
-  price: number;
-  deposit: number;
-  saleType: SaleType | null;
-  status: PetStatus;
-  microchip: string;
-  buyer?: string;
-  escrowHeld?: number;
-};
-
-const statusStyle: Record<PetStatus, string> = {
+const statusStyle: Record<Pet['status'], string> = {
   Available: 'bg-trust/15 text-trust border-trust/30',
   Reserved: 'bg-warm/20 text-warm-foreground border-warm/40',
   Sold: 'bg-warm/20 text-warm-foreground border-warm/40',
@@ -67,49 +41,17 @@ const statusStyle: Record<PetStatus, string> = {
 
 function BreederDashboardPage() {
   const [isLive, setIsLive] = useState(true);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [pets, setPets] = useState<Pet[]>([
-    {
-      id: '1',
-      species: 'Dog',
-      name: 'Puppy #1 (Light Cream)',
-      sex: 'Female',
-      collar: 'Pink Collar',
-      price: 1800,
-      deposit: 250,
-      saleType: 'deposit',
-      status: 'Reserved',
-      microchip: '9851410029381',
-      buyer: 'Sarah Miller',
-      escrowHeld: 250,
-    },
-    {
-      id: '2',
-      species: 'Cat',
-      name: 'Kitten #1 (Blue Point Ragdoll)',
-      sex: 'Male',
-      collar: 'Blue Collar',
-      price: 1500,
-      deposit: 200,
-      saleType: null,
-      status: 'Available',
-      microchip: '9851410029399',
-    },
-    {
-      id: '3',
-      species: 'Dog',
-      name: 'Puppy #3 (Dark Golden)',
-      sex: 'Male',
-      collar: 'Green Collar',
-      price: 1800,
-      deposit: 250,
-      saleType: 'full',
-      status: 'Sold',
-      microchip: '9851410029383',
-      buyer: 'Marcus Vance',
-      escrowHeld: 1800,
-    },
-  ]);
+  const refresh = async () => {
+    const data = await listPets();
+    setPets(data.filter((p) => p.breederName === BREEDER_NAME));
+  };
+
+  useEffect(() => {
+    refresh().finally(() => setLoading(false));
+  }, []);
 
   const [documents] = useState([
     { id: '1', title: 'State Breeder License / Registration', type: 'PDF Document', status: 'Verified', date: '2026-01-15' },
@@ -117,38 +59,51 @@ function BreederDashboardPage() {
   ]);
 
   const [newPet, setNewPet] = useState({ species: 'Dog' as Species, name: '', sex: 'Female' as 'Female' | 'Male', collar: '', price: '1500', microchip: '' });
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleAddPet = (e: React.FormEvent) => {
+  const handleAddPet = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPet.name) return;
-    setPets((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
+    if (!newPet.name || submitting) return;
+    setSubmitting(true);
+    await addPet({
+      data: {
         species: newPet.species,
         name: newPet.name,
         sex: newPet.sex,
         collar: newPet.collar || 'No ID Tag',
         price: Number(newPet.price),
-        deposit: 250,
-        saleType: null,
-        status: 'Available',
         microchip: newPet.microchip || 'Pending Microchip',
+        breederName: BREEDER_NAME,
       },
-    ]);
+    });
     setNewPet({ species: 'Dog', name: '', sex: 'Female', collar: '', price: '1500', microchip: '' });
+    await refresh();
+    setSubmitting(false);
   };
 
-  // Buyer confirms receipt -> escrow releases -> sale closes.
-  // In production this is triggered from the buyer portal, not here;
-  // this button stands in for that until the buyer-side flow is wired up.
-  const closeSale = (id: string) => {
-    setPets((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'Closed' } : p)));
+  const handleRemove = async (id: string) => {
+    await removePet({ data: { id } });
+    await refresh();
+  };
+
+  // Stand-in for the buyer-side "Confirm receipt" action, kept here until
+  // that flow is the only place this can be triggered from.
+  const closeSale = async (id: string) => {
+    await confirmReceipt({ data: { id } });
+    await refresh();
   };
 
   const heldTotal = pets.reduce((sum, p) => sum + (p.status !== 'Closed' ? p.escrowHeld ?? 0 : 0), 0);
   const releasedTotal = pets.reduce((sum, p) => sum + (p.status === 'Closed' ? p.escrowHeld ?? 0 : 0), 0);
   const salesPets = pets.filter((p) => p.saleType);
+
+  if (loading) {
+    return (
+      <SiteShell>
+        <div className="mx-auto max-w-7xl px-4 py-10 text-sm text-muted-foreground sm:px-6">Loading your nursery…</div>
+      </SiteShell>
+    );
+  }
 
   return (
     <SiteShell>
@@ -161,7 +116,7 @@ function BreederDashboardPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-extrabold">Oakwood Paws &amp; Cattery Studio</h1>
+                <h1 className="text-2xl font-extrabold">{BREEDER_NAME}</h1>
                 <span className="flex items-center gap-1 rounded-full border border-trust/30 bg-trust/15 px-2.5 py-0.5 text-xs font-semibold text-trust">
                   <ShieldCheck size={13} /> Verified Breeder
                 </span>
@@ -279,7 +234,7 @@ function BreederDashboardPage() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="mt-2 w-full">
+                  <Button type="submit" disabled={submitting} className="mt-2 w-full">
                     <Plus size={16} /> Post Pet to Nursery
                   </Button>
                 </form>
@@ -303,7 +258,7 @@ function BreederDashboardPage() {
                         <p className="pl-8 text-xs text-muted-foreground">
                           {p.sex} • {p.collar} • Microchip:{' '}
                           <span className="font-mono text-foreground/80">{p.microchip}</span>
-                          {p.buyer && <> • Buyer: <span className="text-foreground/80">{p.buyer}</span></>}
+                          {p.buyerName && <> • Buyer: <span className="text-foreground/80">{p.buyerName}</span></>}
                         </p>
                       </div>
 
@@ -313,7 +268,7 @@ function BreederDashboardPage() {
                           <div className="text-[10px] text-muted-foreground">${p.deposit} Escrow Deposit</div>
                         </div>
                         <button
-                          onClick={() => setPets((prev) => prev.filter((item) => item.id !== p.id))}
+                          onClick={() => handleRemove(p.id)}
                           className="rounded-xl bg-secondary p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                           aria-label="Remove listing"
                         >
@@ -393,7 +348,7 @@ function BreederDashboardPage() {
             </Card>
           </TabsContent>
 
-          {/* TAB 4: ESCROW SALES LEDGER — driven directly from pets, no duplicate data */}
+          {/* TAB 4: ESCROW SALES LEDGER — driven directly from the shared pets store */}
           <TabsContent value="escrow">
             <Card className="p-6">
               <CardHeader className="px-0 pt-0">
@@ -430,7 +385,7 @@ function BreederDashboardPage() {
                     {salesPets.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{p.buyer}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.buyerName}</TableCell>
                         <TableCell>{p.saleType === 'full' ? 'Paid in full' : 'Deposit + balance'}</TableCell>
                         <TableCell className="font-mono">${p.escrowHeld?.toLocaleString()}</TableCell>
                         <TableCell>
@@ -459,8 +414,8 @@ function BreederDashboardPage() {
                 </Table>
               )}
               <p className="mt-3 text-[11px] text-muted-foreground">
-                In production, "Confirm handoff" is triggered by the buyer confirming receipt in their own
-                portal — this button stands in for that until the buyer-side flow is connected.
+                This ledger now reads from the same shared store as the buyer portal — a buyer confirming
+                receipt on their end will show up here as "Released" without you doing anything.
               </p>
             </Card>
           </TabsContent>
