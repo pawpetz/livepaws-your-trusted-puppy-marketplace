@@ -12,9 +12,8 @@ import {
   Copy,
   CheckCircle2,
   Trash2,
-  AlertCircle,
-  Dog,
-  Lock
+  Cat,
+  Dog
 } from 'lucide-react';
 
 export const Route = createFileRoute('/breeder/dashboard')({
@@ -25,60 +24,60 @@ function BreederDashboardPage() {
   const [activeTab, setActiveTab] = useState<'listings' | 'documents' | 'stream' | 'escrow'>('listings');
   const [isLive, setIsLive] = useState(true);
 
-  // Sample Puppy Listings State
-  const [puppies, setPuppies] = useState([
-    { id: '1', name: 'Puppy #1 (Light Cream)', sex: 'Female', collar: 'Pink Collar', price: 1800, deposit: 250, status: 'Available', microchip: '9851410029381' },
-    { id: '2', name: 'Puppy #2 (Classic Golden)', sex: 'Male', collar: 'Blue Collar', price: 1800, deposit: 250, status: 'Available', microchip: '9851410029382' },
-    { id: '3', name: 'Puppy #3 (Dark Golden)', sex: 'Male', collar: 'Green Collar', price: 1800, deposit: 250, status: 'Reserved (Escrow Paid)', microchip: '9851410029383' },
+  // Pet Listings (Dogs & Cats)
+  const [pets, setPets] = useState([
+    { id: '1', species: 'Dog', name: 'Puppy #1 (Light Cream)', sex: 'Female', collar: 'Pink Collar', price: 1800, deposit: 250, status: 'Available', microchip: '9851410029381' },
+    { id: '2', species: 'Cat', name: 'Kitten #1 (Blue Point Ragdoll)', sex: 'Male', collar: 'Blue Collar', price: 1500, deposit: 200, status: 'Available', microchip: '9851410029399' },
+    { id: '3', species: 'Dog', name: 'Puppy #3 (Dark Golden)', sex: 'Male', collar: 'Green Collar', price: 1800, deposit: 250, status: 'Reserved (Escrow Paid)', microchip: '9851410029383' },
   ]);
 
-  // Sample Documents State
-  const [documents, setDocuments] = useState([
-    { id: '1', title: 'AKC Breeder License Certificate', type: 'PDF Document', status: 'Verified', date: '2026-01-15' },
-    { id: '2', title: 'Litter Vet Inspection & Health Check', type: 'PDF Document', status: 'Verified', date: '2026-06-20' },
-    { id: '3', title: 'Parent Genetic Screening (Dam & Sire)', type: 'PDF Document', status: 'Verified', date: '2026-02-10' },
+  // Document Vault
+  const [documents] = useState([
+    { id: '1', title: 'State Breeder License / Registration', type: 'PDF Document', status: 'Verified', date: '2026-01-15' },
+    { id: '2', title: 'Vet Inspection & Health Certificates', type: 'PDF Document', status: 'Verified', date: '2026-06-20' },
   ]);
 
-  // New Puppy Form State
-  const [newPuppy, setNewPuppy] = useState({ name: '', sex: 'Male', collar: '', price: '1800', microchip: '' });
+  // Form State
+  const [newPet, setNewPet] = useState({ species: 'Dog', name: '', sex: 'Female', collar: '', price: '1500', microchip: '' });
 
-  const handleAddPuppy = (e: React.FormEvent) => {
+  const handleAddPet = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPuppy.name) return;
-    setPuppies([
-      ...puppies,
+    if (!newPet.name) return;
+    setPets([
+      ...pets,
       {
         id: Date.now().toString(),
-        name: newPuppy.name,
-        sex: newPuppy.sex,
-        collar: newPuppy.collar || 'Unassigned Collar',
-        price: Number(newPuppy.price),
+        species: newPet.species,
+        name: newPet.name,
+        sex: newPet.sex,
+        collar: newPet.collar || 'No ID Tag',
+        price: Number(newPet.price),
         deposit: 250,
         status: 'Available',
-        microchip: newPuppy.microchip || 'Pending Tag'
+        microchip: newPet.microchip || 'Pending Microchip'
       }
     ]);
-    setNewPuppy({ name: '', sex: 'Male', collar: '', price: '1800', microchip: '' });
+    setNewPet({ species: 'Dog', name: '', sex: 'Female', collar: '', price: '1500', microchip: '' });
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pt-6 pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
-        {/* Top Header Banner */}
+        {/* Header Banner */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-900 border border-gray-800 p-6 rounded-3xl">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-2xl font-bold text-indigo-400">
-              OK
+              LP
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-extrabold text-white">Oakwood Kennels Portal</h1>
+                <h1 className="text-2xl font-extrabold text-white">Oakwood Paws & Cattery Studio</h1>
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1">
                   <ShieldCheck size={13} /> Verified Breeder
                 </span>
               </div>
-              <p className="text-gray-400 text-xs mt-1">Manage litter posts, health documents, cameras, and escrow sales</p>
+              <p className="text-gray-400 text-xs mt-1">Manage litters (puppies & kittens), vet docs, stream feed, and escrow payouts</p>
             </div>
           </div>
 
@@ -92,12 +91,12 @@ function BreederDashboardPage() {
               }`}
             >
               <Radio size={16} className={isLive ? 'animate-pulse' : ''} />
-              {isLive ? 'Nursery Stream Active' : 'Go Live Now'}
+              {isLive ? 'Nursery Camera Live' : 'Start Live Camera'}
             </button>
           </div>
         </div>
 
-        {/* Tab Navigation Navigation */}
+        {/* Tab Navigation */}
         <div className="flex border-b border-gray-800 gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab('listings')}
@@ -107,7 +106,7 @@ function BreederDashboardPage() {
                 : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
-            <Dog size={16} /> Puppy Listings & Litters ({puppies.length})
+            <Dog size={16} /> Pet Listings ({pets.length})
           </button>
 
           <button
@@ -118,7 +117,7 @@ function BreederDashboardPage() {
                 : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
-            <FileText size={16} /> Vet & Health Vault ({documents.length})
+            <FileText size={16} /> Health & Vet Vault ({documents.length})
           </button>
 
           <button
@@ -129,7 +128,7 @@ function BreederDashboardPage() {
                 : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
-            <Camera size={16} /> Nursery Stream & Cams
+            <Camera size={16} /> Live Stream Feed
           </button>
 
           <button
@@ -140,53 +139,76 @@ function BreederDashboardPage() {
                 : 'border-transparent text-gray-400 hover:text-white'
             }`}
           >
-            <DollarSign size={16} /> Escrow Ledger ($2,050.00)
+            <DollarSign size={16} /> Escrow Sales ($2,050.00)
           </button>
         </div>
 
-        {/* TAB 1: PUPPY LISTINGS & POSTING FORM */}
+        {/* TAB 1: PET LISTINGS */}
         {activeTab === 'listings' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Post New Puppy Form */}
+            {/* Simple Form */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
               <h2 className="font-bold text-lg text-white flex items-center gap-2">
-                <Plus className="text-indigo-400" size={20} /> Post New Puppy
+                <Plus className="text-indigo-400" size={20} /> Add Puppy or Kitten
               </h2>
-              <p className="text-xs text-gray-400">Add a new puppy to your active Golden Retriever litter.</p>
 
-              <form onSubmit={handleAddPuppy} className="space-y-3 pt-2 text-xs">
+              <form onSubmit={handleAddPet} className="space-y-3 pt-1 text-xs">
                 <div>
-                  <label className="block text-gray-400 mb-1">Puppy Name / Identifier</label>
+                  <label className="block text-gray-400 mb-1">Pet Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewPet({ ...newPet, species: 'Dog' })}
+                      className={`p-2 rounded-xl border font-bold flex items-center justify-center gap-2 transition-all ${
+                        newPet.species === 'Dog' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'border-gray-800 text-gray-400'
+                      }`}
+                    >
+                      <Dog size={16} /> Dog / Puppy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewPet({ ...newPet, species: 'Cat' })}
+                      className={`p-2 rounded-xl border font-bold flex items-center justify-center gap-2 transition-all ${
+                        newPet.species === 'Cat' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'border-gray-800 text-gray-400'
+                      }`}
+                    >
+                      <Cat size={16} /> Cat / Kitten
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-400 mb-1">Name or Tag</label>
                   <input 
                     type="text" 
                     required
-                    placeholder="e.g. Puppy #4 (Dark Golden)" 
-                    value={newPuppy.name}
-                    onChange={(e) => setNewPuppy({ ...newPuppy, name: e.target.value })}
+                    placeholder="e.g. Kitten #2 or Puppy #4" 
+                    value={newPet.name}
+                    onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
                     className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-gray-400 mb-1">Sex</label>
+                    <label className="block text-gray-400 mb-1">Gender</label>
                     <select 
-                      value={newPuppy.sex}
-                      onChange={(e) => setNewPuppy({ ...newPuppy, sex: e.target.value })}
+                      value={newPet.sex}
+                      onChange={(e) => setNewPet({ ...newPet, sex: e.target.value })}
                       className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
                     >
-                      <option value="Male">Male</option>
                       <option value="Female">Female</option>
+                      <option value="Male">Male</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-gray-400 mb-1">Collar ID Color</label>
+                    <label className="block text-gray-400 mb-1">Collar / Identifier</label>
                     <input 
                       type="text" 
                       placeholder="e.g. Yellow Collar" 
-                      value={newPuppy.collar}
-                      onChange={(e) => setNewPuppy({ ...newPuppy, collar: e.target.value })}
+                      value={newPet.collar}
+                      onChange={(e) => setNewPet({ ...newPet, collar: e.target.value })}
                       className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
                     />
                   </div>
@@ -198,18 +220,18 @@ function BreederDashboardPage() {
                     <input 
                       type="number" 
                       required
-                      value={newPuppy.price}
-                      onChange={(e) => setNewPuppy({ ...newPuppy, price: e.target.value })}
+                      value={newPet.price}
+                      onChange={(e) => setNewPet({ ...newPet, price: e.target.value })}
                       className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-400 mb-1">Microchip ID (Optional)</label>
+                    <label className="block text-gray-400 mb-1">Microchip # (Optional)</label>
                     <input 
                       type="text" 
                       placeholder="98514..." 
-                      value={newPuppy.microchip}
-                      onChange={(e) => setNewPuppy({ ...newPuppy, microchip: e.target.value })}
+                      value={newPet.microchip}
+                      onChange={(e) => setNewPet({ ...newPet, microchip: e.target.value })}
                       className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-white focus:border-indigo-500 focus:outline-none"
                     />
                   </div>
@@ -219,20 +241,23 @@ function BreederDashboardPage() {
                   type="submit"
                   className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 mt-2"
                 >
-                  <Plus size={16} /> Add Puppy to Live Nursery
+                  <Plus size={16} /> Post Pet to Nursery
                 </button>
               </form>
             </div>
 
-            {/* Active Litter List */}
+            {/* Pet List */}
             <div className="lg:col-span-2 space-y-4">
-              <h2 className="font-bold text-lg text-white">Active Litter Listings ({puppies.length})</h2>
+              <h2 className="font-bold text-lg text-white">Active Nursery Listings ({pets.length})</h2>
 
               <div className="space-y-3">
-                {puppies.map((p) => (
+                {pets.map((p) => (
                   <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-lg bg-gray-800 text-indigo-400">
+                          {p.species === 'Dog' ? <Dog size={16} /> : <Cat size={16} />}
+                        </span>
                         <span className="font-bold text-white text-sm">{p.name}</span>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                           p.status.includes('Reserved') 
@@ -242,7 +267,7 @@ function BreederDashboardPage() {
                           {p.status}
                         </span>
                       </div>
-                      <p className="text-gray-400 text-xs">
+                      <p className="text-gray-400 text-xs pl-8">
                         {p.sex} • {p.collar} • Microchip: <span className="font-mono text-gray-300">{p.microchip}</span>
                       </p>
                     </div>
@@ -253,7 +278,7 @@ function BreederDashboardPage() {
                         <div className="text-[10px] text-gray-500">${p.deposit} Escrow Deposit</div>
                       </div>
                       <button 
-                        onClick={() => setPuppies(puppies.filter(item => item.id !== p.id))}
+                        onClick={() => setPets(pets.filter(item => item.id !== p.id))}
                         className="p-2 bg-gray-800 hover:bg-red-950 hover:text-red-400 rounded-xl transition-colors text-gray-400"
                       >
                         <Trash2 size={16} />
@@ -267,33 +292,24 @@ function BreederDashboardPage() {
           </div>
         )}
 
-        {/* TAB 2: VET & HEALTH DOCUMENTS VAULT */}
+        {/* TAB 2: VET & HEALTH VAULT */}
         {activeTab === 'documents' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Upload Document Box */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
               <h2 className="font-bold text-lg text-white flex items-center gap-2">
-                <Upload className="text-indigo-400" size={20} /> Upload Breeder Certificate
+                <Upload className="text-indigo-400" size={20} /> Upload Health Record
               </h2>
-              <p className="text-xs text-gray-400">Upload state licenses, vet health check records, or health guarantees.</p>
+              <p className="text-xs text-gray-400">Upload state breeder licenses, vet vaccination reports, or health guarantees.</p>
 
               <div className="border-2 border-dashed border-gray-800 rounded-2xl p-6 text-center hover:border-indigo-500 transition-colors bg-gray-950 cursor-pointer">
                 <Upload size={28} className="mx-auto text-indigo-400 mb-2" />
-                <p className="text-xs font-semibold text-white">Click or drag PDF files here</p>
-                <p className="text-[10px] text-gray-500 mt-1">Supports PDF, JPG up to 10MB</p>
-              </div>
-
-              <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-xl p-3 text-[11px] text-indigo-300 flex items-start gap-2">
-                <ShieldCheck size={16} className="shrink-0 mt-0.5 text-indigo-400" />
-                <p>Verified records display an AKC/Vet Trust Badge on your live stream for buyers.</p>
+                <p className="text-xs font-semibold text-white">Upload PDF or Image</p>
+                <p className="text-[10px] text-gray-500 mt-1">Up to 10MB</p>
               </div>
             </div>
 
-            {/* Document Records List */}
             <div className="lg:col-span-2 space-y-4">
-              <h2 className="font-bold text-lg text-white">Verified Breeder Documents ({documents.length})</h2>
-
+              <h2 className="font-bold text-lg text-white">Verified Records ({documents.length})</h2>
               <div className="space-y-3">
                 {documents.map((doc) => (
                   <div key={doc.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex items-center justify-between">
@@ -306,66 +322,45 @@ function BreederDashboardPage() {
                         <span className="text-[10px] text-gray-500">{doc.type} • Uploaded {doc.date}</span>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                        <CheckCircle2 size={12} /> {doc.status}
-                      </span>
-                    </div>
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                      <CheckCircle2 size={12} /> {doc.status}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
-
           </div>
         )}
 
-        {/* TAB 3: NURSERY STREAM & CAM SETUP */}
+        {/* TAB 3: SIMPLE SINGLE CAMERA STREAM SETUP */}
         {activeTab === 'stream' && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-6">
-            <h2 className="font-bold text-lg text-white flex items-center gap-2">
-              <Camera className="text-indigo-400" size={20} /> Nursery Camera Setup & Stream Keys
-            </h2>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-6 max-w-2xl">
+            <div>
+              <h2 className="font-bold text-lg text-white flex items-center gap-2">
+                <Camera className="text-indigo-400" size={20} /> Single Nursery Camera Feed
+              </h2>
+              <p className="text-xs text-gray-400 mt-1">Connect your mobile camera or RTMP stream. Keep it simple and go live in seconds.</p>
+            </div>
 
-            <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 flex items-center justify-between text-xs">
+            <div className="bg-gray-950 p-4 rounded-xl border border-gray-800 space-y-3 text-xs">
               <div>
-                <span className="font-bold text-white block">RTMP Broadcast Key</span>
-                <span className="text-gray-500 font-mono">rtmp://live.livepaws.health/app/oakwood_89203</span>
+                <span className="font-bold text-white block mb-1">Your Unique Live Stream Key</span>
+                <span className="text-gray-400 font-mono bg-gray-900 p-2 rounded-lg block border border-gray-800 overflow-x-auto">
+                  rtmp://live.livepaws.health/app/oakwood_nursery_feed
+                </span>
               </div>
-              <button className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors flex items-center gap-1 text-[11px]">
-                <Copy size={14} /> Copy RTMP Link
+              <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold">
+                <Copy size={14} /> Copy Stream Key
               </button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-950 border border-gray-800 p-4 rounded-xl space-y-2">
-                <span className="font-bold text-xs text-white">Cam 1: Play Area Feed</span>
-                <input 
-                  type="text" 
-                  value="rtsp://live.oakwood.com/cam1" 
-                  readOnly 
-                  className="w-full bg-gray-900 border border-gray-800 rounded-lg p-2 text-xs text-gray-400 font-mono" 
-                />
-              </div>
-
-              <div className="bg-gray-950 border border-gray-800 p-4 rounded-xl space-y-2">
-                <span className="font-bold text-xs text-white">Cam 2: Sleeping Nook Feed</span>
-                <input 
-                  type="text" 
-                  value="rtsp://live.oakwood.com/cam2" 
-                  readOnly 
-                  className="w-full bg-gray-900 border border-gray-800 rounded-lg p-2 text-xs text-gray-400 font-mono" 
-                />
-              </div>
-            </div>
           </div>
         )}
 
-        {/* TAB 4: ESCROW LEDGER */}
+        {/* TAB 4: ESCROW SALES LEDGER */}
         {activeTab === 'escrow' && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
             <h2 className="font-bold text-lg text-white flex items-center gap-2">
-              <DollarSign className="text-emerald-400" size={20} /> Escrow Sales & Pending Payouts
+              <DollarSign className="text-emerald-400" size={20} /> Escrow Sales & Payout Ledger
             </h2>
 
             <div className="space-y-3">
@@ -377,7 +372,7 @@ function BreederDashboardPage() {
                 <div className="text-right">
                   <span className="font-extrabold text-emerald-400 text-sm">$1,800.00 Paid</span>
                   <span className="text-[10px] text-amber-400 block flex items-center gap-1 justify-end">
-                    <Clock size={12} /> Pending Pickup Release
+                    <Clock size={12} /> Held in Escrow
                   </span>
                 </div>
               </div>
