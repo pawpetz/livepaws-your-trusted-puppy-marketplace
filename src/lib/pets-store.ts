@@ -29,6 +29,9 @@ export type Pet = {
   species: Species;
   name: string;
   breed: string;
+  bio: string;
+  ageWeeks: number;
+  location: string;
   image: string;
   sex: 'Female' | 'Male';
   collar: string;
@@ -42,6 +45,9 @@ export type Pet = {
   escrowHeld?: number;
   reviewRating?: number;
   reviewComment?: string;
+  pickupAvailable: boolean;
+  shippingAvailable: boolean;
+  shippingFee?: number;
 };
 
 const defaultImage = (species: Species) =>
@@ -55,6 +61,9 @@ let pets: Pet[] = [
     species: 'Dog',
     name: 'Puppy #1 (Light Cream)',
     breed: 'Golden Retriever',
+    bio: 'Playful and affectionate, already crate-training well. Loves belly rubs and squeaky toys.',
+    ageWeeks: 9,
+    location: 'Bend, OR',
     image: defaultImage('Dog'),
     sex: 'Female',
     collar: 'Pink Collar',
@@ -66,12 +75,18 @@ let pets: Pet[] = [
     breederName: 'Oakwood Paws & Cattery Studio',
     buyerName: 'Sarah Miller',
     escrowHeld: 250,
+    pickupAvailable: true,
+    shippingAvailable: true,
+    shippingFee: 250,
   },
   {
     id: '2',
     species: 'Cat',
     name: 'Kitten #1 (Blue Point Ragdoll)',
     breed: 'Ragdoll',
+    bio: 'Gentle lap cat in training — calm around noise and already used to being handled daily.',
+    ageWeeks: 10,
+    location: 'Bend, OR',
     image: defaultImage('Cat'),
     sex: 'Male',
     collar: 'Blue Collar',
@@ -81,12 +96,17 @@ let pets: Pet[] = [
     status: 'Available',
     microchip: '9851410029399',
     breederName: 'Oakwood Paws & Cattery Studio',
+    pickupAvailable: true,
+    shippingAvailable: false,
   },
   {
     id: '3',
     species: 'Dog',
     name: 'Puppy #3 (Dark Golden)',
     breed: 'Golden Retriever',
+    bio: 'The bold one of the litter — first to explore new toys, good with other dogs.',
+    ageWeeks: 9,
+    location: 'Bend, OR',
     image: defaultImage('Dog'),
     sex: 'Male',
     collar: 'Green Collar',
@@ -98,6 +118,9 @@ let pets: Pet[] = [
     breederName: 'Oakwood Paws & Cattery Studio',
     buyerName: 'Marcus Vance',
     escrowHeld: 1800,
+    pickupAvailable: true,
+    shippingAvailable: true,
+    shippingFee: 250,
   },
 ];
 
@@ -113,7 +136,13 @@ export const addPet = createServerFn({ method: 'POST' })
       price: number;
       microchip: string;
       breederName: string;
-      breed?: string;
+      breed: string;
+      bio: string;
+      ageWeeks: number;
+      location: string;
+      pickupAvailable: boolean;
+      shippingAvailable: boolean;
+      shippingFee?: number;
       image?: string;
     }) => input,
   )
@@ -122,7 +151,10 @@ export const addPet = createServerFn({ method: 'POST' })
       id: crypto.randomUUID(),
       species: data.species,
       name: data.name,
-      breed: data.breed ?? (data.species === 'Dog' ? 'Mixed breed' : 'Mixed breed'),
+      breed: data.breed || 'Mixed breed',
+      bio: data.bio,
+      ageWeeks: data.ageWeeks,
+      location: data.location,
       image: data.image ?? defaultImage(data.species),
       sex: data.sex,
       collar: data.collar,
@@ -132,6 +164,9 @@ export const addPet = createServerFn({ method: 'POST' })
       status: 'Available',
       microchip: data.microchip,
       breederName: data.breederName,
+      pickupAvailable: data.pickupAvailable,
+      shippingAvailable: data.shippingAvailable,
+      shippingFee: data.shippingAvailable ? data.shippingFee : undefined,
     };
     pets = [...pets, pet];
     return pet;
