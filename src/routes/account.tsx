@@ -10,6 +10,10 @@ import {
   Star,
   Download,
   AlertTriangle,
+  MapPin,
+  CalendarDays,
+  Truck,
+  Home as HomeIcon,
 } from 'lucide-react';
 import { SiteShell } from '@/components/site-shell';
 import { Button } from '@/components/ui/button';
@@ -109,6 +113,16 @@ function OrderCard({ pet, onChanged }: { pet: Pet; onChanged: () => void }) {
             </div>
             <StatusPill status={pet.status} />
           </div>
+
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1"><CalendarDays size={12} /> {pet.ageWeeks} weeks old</span>
+            <span className="flex items-center gap-1"><MapPin size={12} /> {pet.location}</span>
+            {pet.pickupAvailable && <span className="flex items-center gap-1"><HomeIcon size={12} /> Pickup available</span>}
+            {pet.shippingAvailable && (
+              <span className="flex items-center gap-1"><Truck size={12} /> Ships (${pet.shippingFee})</span>
+            )}
+          </div>
+          {pet.bio && <p className="text-xs text-muted-foreground/80">{pet.bio}</p>}
 
           {/* One plain-language line about the money — the thing buyers actually worry about */}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
