@@ -1,104 +1,170 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Compass, Home, LayoutDashboard, Moon, PawPrint, Sun, Video } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { applyTheme, getInitialTheme } from "@/lib/theme";
-import { cn } from "@/lib/utils";
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { 
+  Dog, 
+  Cat, 
+  Video, 
+  ShieldCheck, 
+  HelpCircle, 
+  BookOpen, 
+  Briefcase, 
+  User, 
+  LayoutDashboard, 
+  ShieldAlert,
+  ChevronDown,
+  Search,
+  Menu,
+  X
+} from 'lucide-react';
 
-const links = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/explore", label: "Explore", icon: Compass },
-  { to: "/live/sunday-goldens", label: "Live", icon: Video },
-  { to: "/breeder/dashboard", label: "Breeder", icon: LayoutDashboard },
-] as const;
+export const SiteNav: React.FC = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
-export function TopNav() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    const t = getInitialTheme();
-    setTheme(t);
-    applyTheme(t);
-  }, []);
-
-  const toggle = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    applyTheme(next);
+  const toggleDropdown = (name: string) => {
+    setActiveDropdown(activeDropdown === name ? null : name);
   };
 
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-2 font-bold">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <PawPrint className="h-5 w-5" />
-          </span>
-          <span className="text-lg tracking-tight">
-            Live<span className="text-primary">Paws</span>
-          </span>
-        </Link>
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          
+          {/* Logo & Brand */}
+          <div className="flex items-center gap-8">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                🐾
+              </div>
+              <span className="text-xl font-extrabold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                LivePaws
+              </span>
+            </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
-          {links.map(({ to, label }) => {
-            const active =
-              to === "/" ? pathname === "/" : pathname.startsWith(to.split("/").slice(0, 2).join("/"));
-            return (
-              <Link
-                key={to}
-                to={to}
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-secondary text-secondary-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+            {/* Desktop Navigation Dropdowns */}
+            <nav className="hidden md:flex items-center gap-6">
+              
+              {/* Explore Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => toggleDropdown('explore')}
+                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors py-2"
+                >
+                  Explore <ChevronDown size={16} />
+                </button>
+
+                {activeDropdown === 'explore' && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-100 p-2 z-50">
+                    <Link to="/explore?species=dog" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      <Dog size={18} className="text-indigo-500" /> Browse Puppies
+                    </Link>
+                    <Link to="/explore?species=cat" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      <Cat size={18} className="text-indigo-500" /> Browse Kittens
+                    </Link>
+                    <Link to="/live" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      <Video size={18} className="text-red-500" /> Live Streams Schedule
+                    </Link>
+                  </div>
                 )}
-              >
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
+              </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
-          <Button asChild size="sm" className="hidden sm:inline-flex">
-            <Link to="/explore">Watch live</Link>
-          </Button>
+              {/* Learn & Trust Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => toggleDropdown('learn')}
+                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors py-2"
+                >
+                  Learn & Trust <ChevronDown size={16} />
+                </button>
+
+                {activeDropdown === 'learn' && (
+                  <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-gray-100 p-2 z-50">
+                    <Link to="/about" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      <ShieldCheck size={18} className="text-emerald-500" /> About LivePaws & Escrow
+                    </Link>
+                    <Link to="/how-it-works" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      <HelpCircle size={18} className="text-indigo-500" /> How Deposit Escrow Works
+                    </Link>
+                    <Link to="/blog" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      <BookOpen size={18} className="text-amber-500" /> Adoption & Pet Care Blog
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* For Breeders Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => toggleDropdown('breeders')}
+                  className="flex items-center gap-1 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors py-2"
+                >
+                  For Breeders <ChevronDown size={16} />
+                </button>
+
+                {activeDropdown === 'breeders' && (
+                  <div className="absolute top-full left-0 mt-1 w-60 bg-white rounded-xl shadow-lg border border-gray-100 p-2 z-50">
+                    <Link to="/breeder/apply" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      <Briefcase size={18} className="text-indigo-500" /> Apply for Verification
+                    </Link>
+                    <Link to="/breeder/dashboard" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      <LayoutDashboard size={18} className="text-violet-500" /> Breeder Studio Portal
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </nav>
+          </div>
+
+          {/* Quick Search Bar */}
+          <div className="hidden lg:flex items-center flex-1 max-w-xs mx-6">
+            <div className="relative w-full">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search breeds or kennels..." 
+                className="w-full pl-9 pr-4 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:border-indigo-500 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons & Auth */}
+          <div className="hidden md:flex items-center gap-3">
+            <Link 
+              to="/auth" 
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors flex items-center gap-1.5"
+            >
+              <User size={16} /> Sign In
+            </Link>
+
+            <Link 
+              to="/admin" 
+              className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-1 transition-colors"
+              title="Super Admin Portal"
+            >
+              <ShieldAlert size={14} className="text-amber-600" /> Admin
+            </Link>
+
+            <Link 
+              to="/live" 
+              className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-sm hover:shadow transition-all flex items-center gap-2"
+            >
+              <span className="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
+              Watch Live
+            </Link>
+          </div>
+
+          {/* Mobile Menu Toggle */}
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+          >
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+
         </div>
       </div>
     </header>
   );
-}
+};
 
-export function BottomNav() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur md:hidden">
-      <ul className="mx-auto grid max-w-lg grid-cols-4">
-        {links.map(({ to, label, icon: Icon }) => {
-          const active =
-            to === "/" ? pathname === "/" : pathname.startsWith(to.split("/").slice(0, 2).join("/"));
-          return (
-            <li key={to}>
-              <Link
-                to={to}
-                className={cn(
-                  "flex flex-col items-center gap-1 py-2.5 text-xs font-medium transition-colors",
-                  active ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                {label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
-}
+export default SiteNav;
