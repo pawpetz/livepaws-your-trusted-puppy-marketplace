@@ -11,7 +11,11 @@ import {
   Info, 
   Lock,
   Sparkles,
-  Camera
+  Camera,
+  X,
+  CreditCard,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 export const Route = createFileRoute('/live/$streamId')({
@@ -21,6 +25,11 @@ export const Route = createFileRoute('/live/$streamId')({
 function LiveStreamPage() {
   const [activeCamera, setActiveCamera] = useState('cam-1');
   const [chatMessage, setChatMessage] = useState('');
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<'form' | 'success'>('form');
+  const [paymentType, setPaymentType] = useState<'deposit' | 'full'>('deposit');
+  const [selectedPuppy, setSelectedPuppy] = useState('Puppy #2 (Male - Golden)');
+
   const [messages, setMessages] = useState([
     { id: 1, user: 'Sarah M.', text: 'Are these Golden Retriever pups 6 weeks old now?', time: '12:04 PM', isBreeder: false },
     { id: 2, user: 'Oakwood Kennels (Breeder)', text: 'Hi Sarah! Yes, they turned 6 weeks old this past Tuesday!', time: '12:05 PM', isBreeder: true },
@@ -43,8 +52,13 @@ function LiveStreamPage() {
     setChatMessage('');
   };
 
+  const handleCompletePurchase = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCheckoutStep('success');
+  };
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white pt-4 pb-16">
+    <div className="min-h-screen bg-gray-950 text-white pt-4 pb-16 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Stream Header Info */}
@@ -82,15 +96,12 @@ function LiveStreamPage() {
           {/* Main Video Viewport */}
           <div className="lg:col-span-2 space-y-4">
             <div className="relative aspect-video bg-gray-900 rounded-2xl overflow-hidden border border-gray-800 shadow-2xl group">
-              
-              {/* Simulated Video Feed */}
               <img 
                 src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80" 
                 alt="Live Puppy Nursery Feed" 
                 className="w-full h-full object-cover"
               />
 
-              {/* Video Overlay Badges */}
               <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10">
                 <Users size={14} className="text-indigo-400" />
                 <span>428 watching</span>
@@ -100,7 +111,6 @@ function LiveStreamPage() {
                 1080p 60fps HD
               </div>
 
-              {/* Bottom Video Control Bar */}
               <div className="absolute bottom-4 left-4 right-4 bg-black/70 backdrop-blur-md p-3 rounded-xl border border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Camera size={16} className="text-indigo-400" />
@@ -157,7 +167,7 @@ function LiveStreamPage() {
               <div className="mt-4 pt-4 border-t border-gray-800 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-300">
                 <div className="flex items-center gap-2">
                   <Lock size={16} className="text-emerald-400" />
-                  <span>Deposit held in Escrow until pickup</span>
+                  <span>Funds held in Escrow until pickup</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-amber-400" />
@@ -172,10 +182,10 @@ function LiveStreamPage() {
 
           </div>
 
-          {/* Right Column: Live Chat & Escrow Reservation */}
+          {/* Right Column: Live Chat & Escrow Purchase Card */}
           <div className="space-y-6 flex flex-col h-full">
             
-            {/* Escrow Deposit Action Card */}
+            {/* Direct Purchase & Escrow Card */}
             <div className="bg-gradient-to-br from-indigo-900/40 via-violet-900/20 to-gray-900 border border-indigo-500/30 rounded-2xl p-5 shadow-xl">
               <div className="flex justify-between items-start mb-3">
                 <div>
@@ -183,24 +193,27 @@ function LiveStreamPage() {
                   <h4 className="text-xl font-extrabold text-white mt-0.5">3 Pups Remaining</h4>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-gray-400">Escrow Deposit</span>
-                  <p className="text-xl font-bold text-emerald-400">$250</p>
+                  <span className="text-xs text-gray-400">Full Price</span>
+                  <p className="text-xl font-bold text-emerald-400">$1,800</p>
                 </div>
               </div>
 
               <p className="text-xs text-gray-300 mb-4">
-                Lock in your selection today. Your deposit is safely held in LivePaws Escrow until you inspect your puppy.
+                Reserve with a deposit or complete your purchase securely. All payments are protected by LivePaws Escrow.
               </p>
 
-              <button className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2">
-                <ShieldCheck size={18} /> Reserve Puppy with Escrow
-              </button>
+              <div className="space-y-2">
+                <button 
+                  onClick={() => { setCheckoutStep('form'); setIsCheckoutOpen(true); }}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <Lock size={18} /> Buy Now / Reserve with Escrow
+                </button>
+              </div>
             </div>
 
             {/* Live Stream Chat Panel */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl flex-1 flex flex-col h-[480px]">
-              
-              {/* Chat Header */}
               <div className="p-4 border-b border-gray-800 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <MessageSquare size={18} className="text-indigo-400" />
@@ -209,7 +222,6 @@ function LiveStreamPage() {
                 <span className="text-xs text-gray-500">Moderated by LivePaws</span>
               </div>
 
-              {/* Chat Messages Stream */}
               <div className="flex-1 p-4 overflow-y-auto space-y-3 font-sans text-xs">
                 {messages.map((msg) => (
                   <div 
@@ -231,7 +243,6 @@ function LiveStreamPage() {
                 ))}
               </div>
 
-              {/* Chat Input Bar */}
               <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-800 flex gap-2">
                 <input 
                   type="text" 
@@ -247,13 +258,188 @@ function LiveStreamPage() {
                   <Send size={16} />
                 </button>
               </form>
-
             </div>
 
           </div>
 
         </div>
       </div>
+
+      {/* COMPLETE PURCHASE / ESCROW MODAL */}
+      {isCheckoutOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-950">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="text-emerald-400" size={20} />
+                <h3 className="font-bold text-white">LivePaws Escrow Checkout</h3>
+              </div>
+              <button 
+                onClick={() => setIsCheckoutOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {checkoutStep === 'form' ? (
+              <form onSubmit={handleCompletePurchase} className="p-6 space-y-5 text-xs text-gray-300">
+                
+                {/* Select Puppy */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-200 mb-1.5">Select Puppy from Litter</label>
+                  <select 
+                    value={selectedPuppy}
+                    onChange={(e) => setSelectedPuppy(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option>Puppy #1 (Female - Light Cream) - Available</option>
+                    <option>Puppy #2 (Male - Golden) - Available</option>
+                    <option>Puppy #4 (Female - Dark Golden) - Available</option>
+                  </select>
+                </div>
+
+                {/* Select Payment Option */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-200 mb-1.5">Payment Option</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType('deposit')}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        paymentType === 'deposit' 
+                          ? 'bg-indigo-600/10 border-indigo-500 text-white' 
+                          : 'bg-gray-950 border-gray-800 text-gray-400'
+                      }`}
+                    >
+                      <div className="font-bold text-emerald-400">$250 Deposit</div>
+                      <div className="text-[10px] text-gray-400 mt-0.5">Hold puppy & pay rest at pickup</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentType('full')}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        paymentType === 'full' 
+                          ? 'bg-indigo-600/10 border-indigo-500 text-white' 
+                          : 'bg-gray-950 border-gray-800 text-gray-400'
+                      }`}
+                    >
+                      <div className="font-bold text-emerald-400">$1,800 Full Payment</div>
+                      <div className="text-[10px] text-gray-400 mt-0.5">Complete purchase into Escrow</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Card Payment Details */}
+                <div className="space-y-3 pt-2 border-t border-gray-800">
+                  <div>
+                    <label className="block text-[11px] font-medium text-gray-400 mb-1">Cardholder Name</label>
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="Jane Doe" 
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-gray-400 mb-1">Card Information</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        required 
+                        placeholder="4242 •••• •••• 4242" 
+                        className="w-full bg-gray-950 border border-gray-800 rounded-xl p-2.5 pr-10 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                      <CreditCard size={18} className="absolute right-3 top-2.5 text-gray-500" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-400 mb-1">MM / YY</label>
+                      <input 
+                        type="text" 
+                        required 
+                        placeholder="12/28" 
+                        className="w-full bg-gray-950 border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-400 mb-1">CVC</label>
+                      <input 
+                        type="text" 
+                        required 
+                        placeholder="123" 
+                        className="w-full bg-gray-950 border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Escrow Guarantee Notice */}
+                <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-3 flex gap-2.5 items-start text-emerald-300">
+                  <AlertCircle size={16} className="shrink-0 mt-0.5 text-emerald-400" />
+                  <p className="text-[11px] leading-relaxed">
+                    <strong>100% Escrow Protection:</strong> Funds are locked safely. Payment is released to Oakwood Kennels only after you inspect and confirm receipt of your puppy.
+                  </p>
+                </div>
+
+                {/* Submit CTA */}
+                <button 
+                  type="submit"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
+                >
+                  <Lock size={16} /> Pay {paymentType === 'deposit' ? '$250.00' : '$1,800.00'} into Escrow
+                </button>
+              </form>
+            ) : (
+              /* ORDER CONFIRMATION SCREEN */
+              <div className="p-8 text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
+                  <CheckCircle2 size={36} />
+                </div>
+
+                <h3 className="text-xl font-bold text-white">Escrow Payment Confirmed!</h3>
+                <p className="text-xs text-gray-300 max-w-sm mx-auto leading-relaxed">
+                  Your payment of <strong className="text-emerald-400">{paymentType === 'deposit' ? '$250.00' : '$1,800.00'}</strong> for <strong className="text-white">{selectedPuppy}</strong> is securely locked in LivePaws Escrow.
+                </p>
+
+                <div className="bg-gray-950 border border-gray-800 rounded-xl p-4 text-left text-xs space-y-2">
+                  <div className="flex justify-between text-gray-400">
+                    <span>Escrow Txn ID:</span>
+                    <span className="font-mono text-indigo-400">#LP-982031</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400">
+                    <span>Breeder:</span>
+                    <span className="text-white">Oakwood Kennels</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400">
+                    <span>Status:</span>
+                    <span className="text-emerald-400 font-semibold">Funds Held in Escrow</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-gray-500">
+                  A receipt and breeder contact instructions have been sent to your email.
+                </p>
+
+                <button 
+                  onClick={() => setIsCheckoutOpen(false)}
+                  className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl text-xs transition-colors"
+                >
+                  Return to Live Stream
+                </button>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
