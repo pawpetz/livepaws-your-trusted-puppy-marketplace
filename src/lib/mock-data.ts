@@ -1,8 +1,30 @@
+export type Species = "dog" | "cat";
+
+export const DOG_BREEDS = [
+  "French Bulldog",
+  "Golden Retriever",
+  "Labrador Retriever",
+  "Australian Shepherd",
+  "Pembroke Welsh Corgi",
+  "Dachshund",
+] as const;
+
+export const CAT_BREEDS = [
+  "Maine Coon",
+  "Ragdoll",
+  "Sphynx",
+  "Bengal",
+  "British Shorthair",
+  "Scottish Fold",
+] as const;
+
 export type Stream = {
   id: string;
   title: string;
   breeder: string;
   breed: string;
+  species: Species;
+  registry?: string;
   viewers: number;
   isLive: boolean;
   scheduledFor?: string;
