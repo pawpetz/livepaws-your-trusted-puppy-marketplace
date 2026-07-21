@@ -231,12 +231,12 @@ function LiveView() {
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-1">
-                  <p className="truncate text-sm font-semibold text-white">StoneHighlandFrenchies</p>
+                  <p className="truncate text-sm font-semibold text-white">{stream.breeder}</p>
                   <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-trust" />
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="inline-flex items-center gap-1 rounded-full bg-trust/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-trust-foreground">
-                    <ShieldCheck className="h-2.5 w-2.5" /> USDA Licensed
+                    <ShieldCheck className="h-2.5 w-2.5" /> {registryLabel}
                   </span>
                 </div>
               </div>
