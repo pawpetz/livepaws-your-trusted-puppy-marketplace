@@ -1,493 +1,261 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  BadgeCheck,
-  Heart,
-  Send,
-  Share2,
-  ShieldCheck,
-  Users,
-  Video,
-  X,
-} from "lucide-react";
-import { SiteShell, LiveBadge } from "@/components/site-shell";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import { getStream } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
+import { createFileRoute } from '@tanstack/react-router';
+import React, { useState } from 'react';
+import { 
+  Video, 
+  ShieldCheck, 
+  Users, 
+  MessageSquare, 
+  Send, 
+  Heart, 
+  Share2, 
+  Info, 
+  Lock,
+  Sparkles,
+  Camera
+} from 'lucide-react';
 
-export const Route = createFileRoute("/live/$streamId")({
-  head: ({ params }) => ({
-    meta: [
-      { title: `Live stream — LivePaws` },
-      { name: "description", content: `Watch the ${params.streamId} live stream on LivePaws.` },
-    ],
-  }),
-  loader: ({ params }) => {
-    const stream = getStream(params.streamId);
-    if (!stream) throw notFound();
-    return { stream };
-  },
-  component: LiveView,
-  notFoundComponent: () => (
-    <SiteShell>
-      <div className="p-10 text-center text-muted-foreground">Stream not found.</div>
-    </SiteShell>
-  ),
+export const Route = createFileRoute('/live/$streamId')({
+  component: LiveStreamPage,
 });
 
-// ── Puppies pinned to this stream ──────────────────────────────
-type PinnedPuppy = {
-  id: string;
-  name: string;
-  breed: string;
-  price: number;
-  deposit: number;
-  microchip: string;
-  status: "Available" | "Reserved" | "On hold";
-  image: string;
-};
+function LiveStreamPage() {
+  const [activeCamera, setActiveCamera] = useState('cam-1');
+  const [chatMessage, setChatMessage] = useState('');
+  const [messages, setMessages] = useState([
+    { id: 1, user: 'Sarah M.', text: 'Are these Golden Retriever pups 6 weeks old now?', time: '12:04 PM', isBreeder: false },
+    { id: 2, user: 'Oakwood Kennels (Breeder)', text: 'Hi Sarah! Yes, they turned 6 weeks old this past Tuesday!', time: '12:05 PM', isBreeder: true },
+    { id: 3, user: 'David K.', text: 'They look so active today! ❤️', time: '12:06 PM', isBreeder: false },
+  ]);
 
-const dogPinned: PinnedPuppy[] = [
-  {
-    id: "pup-blue",
-    name: "Blue Collar Male — Frenchie",
-    breed: "French Bulldog",
-    price: 2800,
-    deposit: 250,
-    microchip: "985 141 002 883 041",
-    status: "Available",
-    image: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=800&q=60",
-  },
-  {
-    id: "pup-red",
-    name: "Red Collar Female — Frenchie",
-    breed: "French Bulldog",
-    price: 3200,
-    deposit: 250,
-    microchip: "985 141 002 883 052",
-    status: "Available",
-    image: "https://images.unsplash.com/photo-1612774412771-005ed8e861d2?auto=format&fit=crop&w=800&q=60",
-  },
-  {
-    id: "pup-green",
-    name: "Green Collar Male — Frenchie",
-    breed: "French Bulldog",
-    price: 2600,
-    deposit: 250,
-    microchip: "985 141 002 883 067",
-    status: "On hold",
-    image: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=800&q=60",
-  },
-];
+  const cameras = [
+    { id: 'cam-1', name: 'Cam 1: Play Area', status: 'LIVE' },
+    { id: 'cam-2', name: 'Cam 2: Sleeping Nook', status: 'LIVE' },
+    { id: 'cam-3', name: 'Cam 3: Feeding Station', status: 'IDLE' },
+  ];
 
-const catPinned: PinnedPuppy[] = [
-  {
-    id: "kit-silver",
-    name: "Silver Tabby Female — Maine Coon",
-    breed: "Maine Coon",
-    price: 2200,
-    deposit: 250,
-    microchip: "985 141 004 771 018",
-    status: "Available",
-    image: "https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&w=800&q=60",
-  },
-  {
-    id: "kit-blue",
-    name: "Blue Mitted Male — Ragdoll",
-    breed: "Ragdoll",
-    price: 2400,
-    deposit: 250,
-    microchip: "985 141 004 771 022",
-    status: "Available",
-    image: "https://images.unsplash.com/photo-1519052537078-e6302a4968d4?auto=format&fit=crop&w=800&q=60",
-  },
-  {
-    id: "kit-lilac",
-    name: "Lilac Point Female — Ragdoll",
-    breed: "Ragdoll",
-    price: 2600,
-    deposit: 250,
-    microchip: "985 141 004 771 034",
-    status: "On hold",
-    image: "https://images.unsplash.com/photo-1606214174585-fe31582dc6ee?auto=format&fit=crop&w=800&q=60",
-  },
-];
-
-// ── Chat with contact-sharing guard ───────────────────────────
-const CONTACT_REGEX =
-  /(\+?\d[\d\s().-]{7,}\d)|((https?:\/\/|www\.)\S+)|(\b[\w.+-]+@[\w-]+\.[\w.-]+\b)/gi;
-
-function sanitize(msg: string): { text: string; masked: boolean } {
-  let masked = false;
-  const text = msg.replace(CONTACT_REGEX, () => {
-    masked = true;
-    return "•••••";
-  });
-  return { text, masked };
-}
-
-type ChatMsg = { id: number; user: string; msg: string; breeder?: boolean };
-
-const seedChat: ChatMsg[] = [
-  { id: 1, user: "Hannah", msg: "That little blue collar boy is EVERYTHING 😍" },
-  { id: 2, user: "Marco", msg: "How much are they going for?" },
-  { id: 3, user: "StoneHighland", msg: "Blue is $2,800, deposit holds him!", breeder: true },
-  { id: 4, user: "Priya", msg: "Can you DM me at 555-123-4567?" },
-  { id: 5, user: "Devon", msg: "Check my site www.puppyplug.co for trades" },
-  { id: 6, user: "Ana", msg: "Reserved red collar last stream — so excited!" },
-];
-
-const chatPool = [
-  "How much for the fawn one?",
-  "Are the parents on site?",
-  "Do you ship to CA?",
-  "Blue collar melting my heart 🥺",
-  "email me at buyer@mail.com",
-  "call 415 555 9911",
-  "OMG the puppy pile 😭",
-  "Health tested? OFA?",
-  "Just placed a deposit!",
-  "Any girls left?",
-];
-const chatUsers = ["Kai", "Zoë", "Sam", "Riley", "Jordan", "Wren", "Ivy", "Theo"];
-
-function LiveView() {
-  const { stream } = Route.useLoaderData();
-  const isCat = stream.species === "cat";
-  const pinnedPuppies = isCat ? catPinned : dogPinned;
-  const registryLabel = stream.registry ?? (isCat ? "TICA Registered" : "USDA Licensed");
-  const kindLabel = isCat ? "kittens" : "puppies";
-  const [chat, setChat] = useState<ChatMsg[]>(seedChat);
-  const [likes, setLikes] = useState(1284);
-  const [liked, setLiked] = useState(false);
-  const [reserving, setReserving] = useState<PinnedPuppy | null>(null);
-  const [input, setInput] = useState("");
-  const chatRef = useRef<HTMLUListElement>(null);
-  const nextId = useRef(seedChat.length + 1);
-
-  // Auto-scroll chat
-  useEffect(() => {
-    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
-  }, [chat]);
-
-  // Simulate live chat
-  useEffect(() => {
-    const t = setInterval(() => {
-      const user = chatUsers[Math.floor(Math.random() * chatUsers.length)];
-      const msg = chatPool[Math.floor(Math.random() * chatPool.length)];
-      setChat((prev) =>
-        [...prev, { id: nextId.current++, user, msg }].slice(-30),
-      );
-    }, 3200);
-    return () => clearInterval(t);
-  }, []);
-
-  const sanitized = useMemo(
-    () => chat.map((c) => ({ ...c, ...sanitize(c.msg) })),
-    [chat],
-  );
-
-  const submit = (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    setChat((prev) => [...prev, { id: nextId.current++, user: "You", msg: input }].slice(-30));
-    setInput("");
-  };
-
-  const toggleLike = () => {
-    setLikes((n) => n + (liked ? -1 : 1));
-    setLiked((v) => !v);
+    if (!chatMessage.trim()) return;
+    setMessages([
+      ...messages,
+      { id: Date.now(), user: 'You', text: chatMessage, time: 'Just now', isBreeder: false }
+    ]);
+    setChatMessage('');
   };
 
   return (
-    <SiteShell hideBottomNav>
-      <div className="mx-auto flex w-full max-w-md flex-col bg-black md:max-w-lg">
-        <div className="relative aspect-[9/16] w-full overflow-hidden bg-neutral-900">
-          {/* Video (mock) */}
-          <img
-            src={stream.thumbnail}
-            alt={stream.title}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/0 to-black/80" />
+    <div className="min-h-screen bg-gray-950 text-white pt-4 pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Stream Header Info */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <span className="px-3 py-1 rounded-full bg-red-600 text-white text-xs font-bold tracking-wide flex items-center gap-1.5 animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-white"></span> LIVE NOW
+              </span>
+              <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center gap-1">
+                <ShieldCheck size={14} /> AKC Verified Breeder
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-white">
+              Golden Retriever Litter — Sunday Morning Playtime
+            </h1>
+            <p className="text-gray-400 text-sm mt-1">
+              Hosted by <span className="text-indigo-400 font-semibold">Oakwood Premium Kennels</span> • Canton, OH
+            </p>
+          </div>
 
-          {/* Top overlay */}
-          <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-            <div className="flex min-w-0 items-center gap-2 rounded-full bg-black/45 p-1 pr-3 backdrop-blur">
-              <img
-                src="https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=200&q=60"
-                alt="StoneHighlandFrenchies"
-                className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-live"
+          <div className="flex items-center gap-3">
+            <button className="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors">
+              <Share2 size={18} />
+            </button>
+            <button className="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-rose-500 transition-colors">
+              <Heart size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Main Grid: Video Player + Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Main Video Viewport */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="relative aspect-video bg-gray-900 rounded-2xl overflow-hidden border border-gray-800 shadow-2xl group">
+              
+              {/* Simulated Video Feed */}
+              <img 
+                src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80" 
+                alt="Live Puppy Nursery Feed" 
+                className="w-full h-full object-cover"
               />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1">
-                  <p className="truncate text-sm font-semibold text-white">{stream.breeder}</p>
-                  <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-trust" />
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-trust/90 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-trust-foreground">
-                    <ShieldCheck className="h-2.5 w-2.5" /> {registryLabel}
+
+              {/* Video Overlay Badges */}
+              <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10">
+                <Users size={14} className="text-indigo-400" />
+                <span>428 watching</span>
+              </div>
+
+              <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 text-gray-300">
+                1080p 60fps HD
+              </div>
+
+              {/* Bottom Video Control Bar */}
+              <div className="absolute bottom-4 left-4 right-4 bg-black/70 backdrop-blur-md p-3 rounded-xl border border-white/10 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Camera size={16} className="text-indigo-400" />
+                  <span className="text-xs font-semibold text-gray-200">
+                    {cameras.find(c => c.id === activeCamera)?.name}
                   </span>
                 </div>
+                <div className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                  <ShieldCheck size={14} /> Live Stream Audio Active
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <LiveBadge />
-              <span className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-xs font-semibold text-white backdrop-blur">
-                <Users className="h-3 w-3" /> {stream.viewers}
-              </span>
-              <Button asChild size="icon" variant="secondary" className="h-8 w-8 rounded-full bg-black/50 text-white hover:bg-black/70">
-                <Link to="/explore" aria-label="Exit stream"><X className="h-4 w-4" /></Link>
-              </Button>
-            </div>
-          </div>
 
-          {/* Right-side floating actions */}
-          <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col items-center gap-3">
-            <FloatingAction
-              icon={<Heart className={cn("h-5 w-5", liked && "fill-live text-live")} />}
-              label={likes.toLocaleString()}
-              onClick={toggleLike}
-              active={liked}
-            />
-            <FloatingAction
-              icon={<Share2 className="h-5 w-5" />}
-              label="Share"
-              onClick={() => navigator.share?.({ title: stream.title, url: window.location.href }).catch(() => {})}
-            />
-            <FloatingAction
-              icon={<Video className="h-5 w-5" />}
-              label="1-on-1"
-              tone="primary"
-            />
-          </div>
-
-          {/* Pinned litter carousel */}
-          <div className="absolute inset-x-0 bottom-[42%] px-3">
-            <div className="flex items-center justify-between pb-1.5 text-white">
-              <p className="text-[11px] font-semibold uppercase tracking-wider opacity-80">
-                On camera now
-              </p>
-              <span className="text-[11px] opacity-70">{pinnedPuppies.length} {kindLabel}</span>
-            </div>
-            <div className="-mx-3 flex snap-x snap-mandatory gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {pinnedPuppies.map((p) => (
-                <PuppyCard key={p.id} puppy={p} onReserve={() => setReserving(p)} />
-              ))}
-            </div>
-          </div>
-
-          {/* Floating chat feed (bottom-left) */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 px-3 pb-3">
-            <ul
-              ref={chatRef}
-              className="pointer-events-auto max-h-40 space-y-1.5 overflow-y-auto pr-16 [mask-image:linear-gradient(to_bottom,transparent,black_25%)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {sanitized.map((c) => (
-                <li
-                  key={c.id}
-                  className="animate-fade-in flex flex-col gap-0.5 rounded-2xl bg-black/45 px-3 py-1.5 text-sm text-white backdrop-blur"
+            {/* Camera Switcher Bar */}
+            <div className="grid grid-cols-3 gap-3">
+              {cameras.map((cam) => (
+                <button
+                  key={cam.id}
+                  onClick={() => setActiveCamera(cam.id)}
+                  className={`p-3 rounded-xl border text-left transition-all flex items-center justify-between ${
+                    activeCamera === cam.id 
+                      ? 'bg-indigo-600/10 border-indigo-500 text-white' 
+                      : 'bg-gray-900/60 border-gray-800 text-gray-400 hover:border-gray-700'
+                  }`}
                 >
-                  <div className="flex items-baseline gap-1.5">
-                    <span
-                      className={cn(
-                        "text-[11px] font-semibold",
-                        c.breeder ? "text-trust" : "text-white/90",
-                      )}
-                    >
-                      {c.user}
-                      {c.breeder && (
-                        <span className="ml-1 rounded bg-trust/25 px-1 text-[9px] uppercase text-trust">
-                          Breeder
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-sm leading-snug">{c.text}</span>
+                  <div className="flex items-center gap-2">
+                    <Video size={16} className={activeCamera === cam.id ? 'text-indigo-400' : 'text-gray-500'} />
+                    <span className="text-xs font-semibold block truncate">{cam.name}</span>
                   </div>
-                  {c.masked && (
-                    <span className="text-[10px] italic text-warm">
-                      For your protection, contact sharing is disabled.
-                    </span>
+                  {cam.status === 'LIVE' && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                   )}
-                </li>
+                </button>
               ))}
-            </ul>
+            </div>
 
-            {/* Composer */}
-            <form
-              onSubmit={submit}
-              className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 p-1 pl-4 backdrop-blur"
-            >
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Say something nice…"
-                className="h-8 flex-1 border-0 bg-transparent text-white placeholder:text-white/60 focus-visible:ring-0"
-              />
-              <Button type="submit" size="icon" className="h-8 w-8 rounded-full" aria-label="Send">
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      {/* Reserve drawer */}
-      <Drawer open={!!reserving} onOpenChange={(o) => !o && setReserving(null)}>
-        <DrawerContent>
-          {reserving && (
-            <div className="mx-auto w-full max-w-md">
-              <DrawerHeader className="text-left">
-                <div className="flex items-center gap-3">
-                  <img src={reserving.image} alt={reserving.name} className="h-16 w-16 rounded-xl object-cover" />
-                  <div className="min-w-0">
-                    <DrawerTitle className="truncate">{reserving.name}</DrawerTitle>
-                    <DrawerDescription>{reserving.breed} · ${reserving.price.toLocaleString()}</DrawerDescription>
+            {/* Breeder & Escrow Trust Box */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-xl font-bold text-indigo-400">
+                    OK
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-white">Oakwood Kennels</h3>
+                    <p className="text-xs text-gray-400">Verified Kennel License #OH-89203 • 5.0 ★ (42 reviews)</p>
                   </div>
                 </div>
-              </DrawerHeader>
+                <button className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-xs font-semibold rounded-xl text-gray-200 transition-colors">
+                  View Breeder Profile
+                </button>
+              </div>
 
-              <div className="space-y-3 px-4 pb-2">
-                <InfoRow
-                  icon={<BadgeCheck className="h-4 w-4 text-trust" />}
-                  label="Microchip ID"
-                  value={reserving.microchip}
-                />
-                <InfoRow
-                  icon={<ShieldCheck className="h-4 w-4 text-trust" />}
-                  label="1-Year Health Guarantee"
-                  value="Full refund or replacement for congenital defects diagnosed within 12 months."
-                  multi
-                />
-                <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Escrow deposit</span>
-                    <span className="text-lg font-bold text-primary">${reserving.deposit}</span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Held by LivePaws until pickup. Fully refundable per our health guarantee.
-                  </p>
+              <div className="mt-4 pt-4 border-t border-gray-800 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-300">
+                <div className="flex items-center gap-2">
+                  <Lock size={16} className="text-emerald-400" />
+                  <span>Deposit held in Escrow until pickup</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-amber-400" />
+                  <span>Includes 1-Year Health Guarantee</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Info size={16} className="text-indigo-400" />
+                  <span>Vet inspection records attached</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right Column: Live Chat & Escrow Reservation */}
+          <div className="space-y-6 flex flex-col h-full">
+            
+            {/* Escrow Deposit Action Card */}
+            <div className="bg-gradient-to-br from-indigo-900/40 via-violet-900/20 to-gray-900 border border-indigo-500/30 rounded-2xl p-5 shadow-xl">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Available Puppies</span>
+                  <h4 className="text-xl font-extrabold text-white mt-0.5">3 Pups Remaining</h4>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-gray-400">Escrow Deposit</span>
+                  <p className="text-xl font-bold text-emerald-400">$250</p>
                 </div>
               </div>
 
-              <DrawerFooter>
-                <Button asChild size="lg">
-                  <Link to="/checkout/$puppyId" params={{ puppyId: reserving.id }}>
-                    Proceed to Escrow Checkout
-                  </Link>
-                </Button>
-                <DrawerClose asChild>
-                  <Button variant="ghost">Keep watching</Button>
-                </DrawerClose>
-              </DrawerFooter>
+              <p className="text-xs text-gray-300 mb-4">
+                Lock in your selection today. Your deposit is safely held in LivePaws Escrow until you inspect your puppy.
+              </p>
+
+              <button className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2">
+                <ShieldCheck size={18} /> Reserve Puppy with Escrow
+              </button>
             </div>
-          )}
-        </DrawerContent>
-      </Drawer>
-    </SiteShell>
-  );
-}
 
-function FloatingAction({
-  icon,
-  label,
-  onClick,
-  active,
-  tone,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick?: () => void;
-  active?: boolean;
-  tone?: "primary";
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center gap-1 text-[10px] font-semibold text-white"
-    >
-      <span
-        className={cn(
-          "grid h-11 w-11 place-items-center rounded-full backdrop-blur transition-colors",
-          tone === "primary"
-            ? "bg-primary text-primary-foreground"
-            : active
-              ? "bg-live/90 text-live-foreground"
-              : "bg-black/50 hover:bg-black/70",
-        )}
-      >
-        {icon}
-      </span>
-      <span className="rounded-full bg-black/40 px-1.5 py-0.5">{label}</span>
-    </button>
-  );
-}
+            {/* Live Stream Chat Panel */}
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl flex-1 flex flex-col h-[480px]">
+              
+              {/* Chat Header */}
+              <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={18} className="text-indigo-400" />
+                  <h3 className="font-bold text-sm text-white">Live Nursery Chat</h3>
+                </div>
+                <span className="text-xs text-gray-500">Moderated by LivePaws</span>
+              </div>
 
-function PuppyCard({ puppy, onReserve }: { puppy: PinnedPuppy; onReserve: () => void }) {
-  const disabled = puppy.status !== "Available";
-  return (
-    <div className="snap-start w-64 shrink-0 overflow-hidden rounded-2xl bg-card text-card-foreground shadow-lg">
-      <div className="flex gap-3 p-2.5">
-        <img src={puppy.image} alt={puppy.name} className="h-16 w-16 shrink-0 rounded-lg object-cover" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{puppy.name}</p>
-          <p className="truncate text-[11px] text-muted-foreground">{puppy.breed}</p>
-          <div className="mt-0.5 flex items-center gap-1.5">
-            <span className="text-sm font-bold text-primary">${puppy.price.toLocaleString()}</span>
-            <span
-              className={cn(
-                "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                puppy.status === "Available"
-                  ? "bg-trust/15 text-trust"
-                  : puppy.status === "Reserved"
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-warm/25 text-warm-foreground",
-              )}
-            >
-              {puppy.status}
-            </span>
+              {/* Chat Messages Stream */}
+              <div className="flex-1 p-4 overflow-y-auto space-y-3 font-sans text-xs">
+                {messages.map((msg) => (
+                  <div 
+                    key={msg.id} 
+                    className={`p-3 rounded-xl ${
+                      msg.isBreeder 
+                        ? 'bg-indigo-950/60 border border-indigo-500/30 text-indigo-100' 
+                        : 'bg-gray-800/60 text-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`font-bold ${msg.isBreeder ? 'text-indigo-400' : 'text-gray-300'}`}>
+                        {msg.user}
+                      </span>
+                      <span className="text-[10px] text-gray-500">{msg.time}</span>
+                    </div>
+                    <p className="leading-relaxed">{msg.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chat Input Bar */}
+              <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-800 flex gap-2">
+                <input 
+                  type="text" 
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  placeholder="Ask the breeder a question..." 
+                  className="flex-1 bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                />
+                <button 
+                  type="submit"
+                  className="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-colors"
+                >
+                  <Send size={16} />
+                </button>
+              </form>
+
+            </div>
+
           </div>
+
         </div>
       </div>
-      <Button
-        onClick={onReserve}
-        disabled={disabled}
-        className="w-full rounded-none rounded-b-2xl"
-        size="sm"
-      >
-        {disabled ? puppy.status : `Reserve with $${puppy.deposit} Deposit`}
-      </Button>
     </div>
   );
 }
 
-function InfoRow({
-  icon,
-  label,
-  value,
-  multi,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  multi?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border border-border p-3">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {icon} {label}
-      </div>
-      <p className={cn("mt-1 text-foreground", multi ? "text-sm" : "font-mono text-sm")}>{value}</p>
-    </div>
-  );
-}
+export default LiveStreamPage;
