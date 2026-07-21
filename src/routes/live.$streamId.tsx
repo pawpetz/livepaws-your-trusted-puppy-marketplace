@@ -278,7 +278,7 @@ function LiveView() {
               <p className="text-[11px] font-semibold uppercase tracking-wider opacity-80">
                 On camera now
               </p>
-              <span className="text-[11px] opacity-70">{pinnedPuppies.length} puppies</span>
+              <span className="text-[11px] opacity-70">{pinnedPuppies.length} {kindLabel}</span>
             </div>
             <div className="-mx-3 flex snap-x snap-mandatory gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {pinnedPuppies.map((p) => (
