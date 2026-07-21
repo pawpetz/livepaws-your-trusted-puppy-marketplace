@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { 
   Dog, 
   Cat, 
@@ -14,10 +13,12 @@ import {
   ChevronDown,
   Search,
   Menu,
-  X
+  X,
+  Home,
+  Compass
 } from 'lucide-react';
 
-export const SiteNav: React.FC = () => {
+export const TopNav: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
@@ -32,14 +33,14 @@ export const SiteNav: React.FC = () => {
           
           {/* Logo & Brand */}
           <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2">
+            <a href="/" className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
                 🐾
               </div>
               <span className="text-xl font-extrabold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
                 LivePaws
               </span>
-            </Link>
+            </a>
 
             {/* Desktop Navigation Dropdowns */}
             <nav className="hidden md:flex items-center gap-6">
@@ -55,15 +56,15 @@ export const SiteNav: React.FC = () => {
 
                 {activeDropdown === 'explore' && (
                   <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-100 p-2 z-50">
-                    <Link to="/explore?species=dog" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                    <a href="/explore?species=dog" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
                       <Dog size={18} className="text-indigo-500" /> Browse Puppies
-                    </Link>
-                    <Link to="/explore?species=cat" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                    </a>
+                    <a href="/explore?species=cat" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
                       <Cat size={18} className="text-indigo-500" /> Browse Kittens
-                    </Link>
-                    <Link to="/live" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                    </a>
+                    <a href="/live" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
                       <Video size={18} className="text-red-500" /> Live Streams Schedule
-                    </Link>
+                    </a>
                   </div>
                 )}
               </div>
@@ -79,15 +80,15 @@ export const SiteNav: React.FC = () => {
 
                 {activeDropdown === 'learn' && (
                   <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-gray-100 p-2 z-50">
-                    <Link to="/about" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                    <a href="/about" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
                       <ShieldCheck size={18} className="text-emerald-500" /> About LivePaws & Escrow
-                    </Link>
-                    <Link to="/how-it-works" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                    </a>
+                    <a href="/how-it-works" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
                       <HelpCircle size={18} className="text-indigo-500" /> How Deposit Escrow Works
-                    </Link>
-                    <Link to="/blog" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                    </a>
+                    <a href="/blog" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
                       <BookOpen size={18} className="text-amber-500" /> Adoption & Pet Care Blog
-                    </Link>
+                    </a>
                   </div>
                 )}
               </div>
@@ -103,12 +104,12 @@ export const SiteNav: React.FC = () => {
 
                 {activeDropdown === 'breeders' && (
                   <div className="absolute top-full left-0 mt-1 w-60 bg-white rounded-xl shadow-lg border border-gray-100 p-2 z-50">
-                    <Link to="/breeder/apply" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                    <a href="/breeder/apply" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
                       <Briefcase size={18} className="text-indigo-500" /> Apply for Verification
-                    </Link>
-                    <Link to="/breeder/dashboard" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                    </a>
+                    <a href="/breeder/dashboard" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
                       <LayoutDashboard size={18} className="text-violet-500" /> Breeder Studio Portal
-                    </Link>
+                    </a>
                   </div>
                 )}
               </div>
@@ -129,28 +130,28 @@ export const SiteNav: React.FC = () => {
 
           {/* Action Buttons & Auth */}
           <div className="hidden md:flex items-center gap-3">
-            <Link 
-              to="/auth" 
+            <a 
+              href="/auth" 
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors flex items-center gap-1.5"
             >
               <User size={16} /> Sign In
-            </Link>
+            </a>
 
-            <Link 
-              to="/admin" 
+            <a 
+              href="/admin" 
               className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-1 transition-colors"
               title="Super Admin Portal"
             >
               <ShieldAlert size={14} className="text-amber-600" /> Admin
-            </Link>
+            </a>
 
-            <Link 
-              to="/live" 
+            <a 
+              href="/live" 
               className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-sm hover:shadow transition-all flex items-center gap-2"
             >
               <span className="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
               Watch Live
-            </Link>
+            </a>
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -167,4 +168,27 @@ export const SiteNav: React.FC = () => {
   );
 };
 
-export default SiteNav;
+export const BottomNav: React.FC = () => {
+  return (
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 px-6 py-2 flex justify-around items-center">
+      <a href="/" className="flex flex-col items-center text-xs font-medium text-gray-600 hover:text-indigo-600">
+        <Home size={20} />
+        <span>Home</span>
+      </a>
+      <a href="/explore" className="flex flex-col items-center text-xs font-medium text-gray-600 hover:text-indigo-600">
+        <Compass size={20} />
+        <span>Explore</span>
+      </a>
+      <a href="/live" className="flex flex-col items-center text-xs font-medium text-red-500">
+        <Video size={20} />
+        <span>Live</span>
+      </a>
+      <a href="/auth" className="flex flex-col items-center text-xs font-medium text-gray-600 hover:text-indigo-600">
+        <User size={20} />
+        <span>Account</span>
+      </a>
+    </div>
+  );
+};
+
+export default TopNav;
