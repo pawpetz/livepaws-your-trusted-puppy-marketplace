@@ -9,38 +9,101 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LiveStreamIdRouteImport } from './routes/live.$streamId'
+import { Route as CheckoutPuppyIdRouteImport } from './routes/checkout.$puppyId'
+import { Route as BreederDashboardRouteImport } from './routes/breeder.dashboard'
 
+const ExploreRoute = ExploreRouteImport.update({
+  id: '/explore',
+  path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LiveStreamIdRoute = LiveStreamIdRouteImport.update({
+  id: '/live/$streamId',
+  path: '/live/$streamId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutPuppyIdRoute = CheckoutPuppyIdRouteImport.update({
+  id: '/checkout/$puppyId',
+  path: '/checkout/$puppyId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BreederDashboardRoute = BreederDashboardRouteImport.update({
+  id: '/breeder/dashboard',
+  path: '/breeder/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
+  '/breeder/dashboard': typeof BreederDashboardRoute
+  '/checkout/$puppyId': typeof CheckoutPuppyIdRoute
+  '/live/$streamId': typeof LiveStreamIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
+  '/breeder/dashboard': typeof BreederDashboardRoute
+  '/checkout/$puppyId': typeof CheckoutPuppyIdRoute
+  '/live/$streamId': typeof LiveStreamIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
+  '/breeder/dashboard': typeof BreederDashboardRoute
+  '/checkout/$puppyId': typeof CheckoutPuppyIdRoute
+  '/live/$streamId': typeof LiveStreamIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/explore'
+    | '/breeder/dashboard'
+    | '/checkout/$puppyId'
+    | '/live/$streamId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/explore'
+    | '/breeder/dashboard'
+    | '/checkout/$puppyId'
+    | '/live/$streamId'
+  id:
+    | '__root__'
+    | '/'
+    | '/explore'
+    | '/breeder/dashboard'
+    | '/checkout/$puppyId'
+    | '/live/$streamId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ExploreRoute: typeof ExploreRoute
+  BreederDashboardRoute: typeof BreederDashboardRoute
+  CheckoutPuppyIdRoute: typeof CheckoutPuppyIdRoute
+  LiveStreamIdRoute: typeof LiveStreamIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/explore': {
+      id: '/explore'
+      path: '/explore'
+      fullPath: '/explore'
+      preLoaderRoute: typeof ExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +111,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/live/$streamId': {
+      id: '/live/$streamId'
+      path: '/live/$streamId'
+      fullPath: '/live/$streamId'
+      preLoaderRoute: typeof LiveStreamIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$puppyId': {
+      id: '/checkout/$puppyId'
+      path: '/checkout/$puppyId'
+      fullPath: '/checkout/$puppyId'
+      preLoaderRoute: typeof CheckoutPuppyIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/breeder/dashboard': {
+      id: '/breeder/dashboard'
+      path: '/breeder/dashboard'
+      fullPath: '/breeder/dashboard'
+      preLoaderRoute: typeof BreederDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ExploreRoute: ExploreRoute,
+  BreederDashboardRoute: BreederDashboardRoute,
+  CheckoutPuppyIdRoute: CheckoutPuppyIdRoute,
+  LiveStreamIdRoute: LiveStreamIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
