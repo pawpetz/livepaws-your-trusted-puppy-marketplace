@@ -41,11 +41,12 @@ function Landing() {
               </span>
             </div>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-              Meet your puppy <span className="text-primary">before</span> you meet your puppy.
+              Meet your next <span className="text-primary">family member</span> live before they come home.
             </h1>
             <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              LivePaws streams litters in real time from verified breeders. Watch, chat, and reserve
-              with a refundable deposit held in escrow — the trustworthy way to bring home a pup.
+              LivePaws streams litters of puppies and kittens in real time from verified breeders and
+              catteries. Watch, chat, and reserve with a refundable deposit held in escrow — the
+              trustworthy way to bring home your next companion.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild size="lg">
