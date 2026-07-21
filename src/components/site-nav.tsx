@@ -131,10 +131,10 @@ export const TopNav: React.FC = () => {
           {/* Action Buttons & Auth */}
           <div className="hidden md:flex items-center gap-3">
             <a 
-              href="/auth" 
+              href="/account" 
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors flex items-center gap-1.5"
             >
-              <User size={16} /> Sign In
+              <User size={16} /> My Pets
             </a>
 
             <a 
@@ -183,7 +183,7 @@ export const BottomNav: React.FC = () => {
         <Video size={20} />
         <span>Live</span>
       </a>
-      <a href="/auth" className="flex flex-col items-center text-xs font-medium text-gray-600 hover:text-indigo-600">
+      <a href="/account" className="flex flex-col items-center text-xs font-medium text-gray-600 hover:text-indigo-600">
         <User size={20} />
         <span>Account</span>
       </a>
