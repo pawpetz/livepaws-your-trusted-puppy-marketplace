@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ShieldCheck,
   Lock,
@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 import { SiteShell } from '@/components/site-shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { getPuppy } from '@/lib/mock-data';
+import { confirmReceipt, listPets, payBalance, submitReview, type Pet } from '@/lib/pets-store';
 
 export const Route = createFileRoute('/account')({
   head: () => ({
@@ -25,43 +25,32 @@ export const Route = createFileRoute('/account')({
   component: AccountPage,
 });
 
-/* ------------------------------------------------------------
-   Buyer-side order model. Mirrors the breeder's pet status
-   (Reserved -> Sold -> Closed) so both sides describe the same
-   transaction lifecycle. NOTE: this is local mock state seeded
-   to match the breeder dashboard's sample data — with no shared
-   backend yet, the two dashboards can't actually sync a live
-   change to each other. That's the next real piece of work
-   (see note at the bottom of this page).
------------------------------------------------------------- */
-
-type OrderStatus = 'Reserved' | 'Sold' | 'Closed';
-
-type Order = {
-  id: string;
-  puppyId: string;
-  saleType: 'full' | 'deposit';
-  status: OrderStatus;
-  amountPaid: number;
-  totalPrice: number;
-  reviewed?: boolean;
-};
+// No auth system yet, so "my pets" stands in for whichever buyer name is
+// on the record. Once real accounts exist, this filter becomes "buyerId ===
+// current user" instead of a hardcoded name — the rest of this page doesn't
+// need to change.
+const CURRENT_BUYER = null; // null = show every pet that has any buyer, for demo purposes
 
 function AccountPage() {
-  const [orders, setOrders] = useState<Order[]>([
-    { id: 'ord-1', puppyId: 'pup-01', saleType: 'deposit', status: 'Reserved', amountPaid: 500, totalPrice: 3200 },
-    { id: 'ord-2', puppyId: 'pup-02', saleType: 'full', status: 'Sold', amountPaid: 4800, totalPrice: 4800 },
-  ]);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const payBalance = (id: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: 'Sold', amountPaid: o.totalPrice } : o)),
+  const refresh = async () => {
+    const data = await listPets();
+    setPets(data.filter((p) => (CURRENT_BUYER ? p.buyerName === CURRENT_BUYER : !!p.buyerName)));
+  };
+
+  useEffect(() => {
+    refresh().finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <SiteShell>
+        <div className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground sm:px-6">Loading your pets…</div>
+      </SiteShell>
     );
-  };
-
-  const confirmReceipt = (id: string) => {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: 'Closed' } : o)));
-  };
+  }
 
   return (
     <SiteShell>
@@ -73,89 +62,91 @@ function AccountPage() {
           </p>
         </div>
 
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              onPayBalance={() => payBalance(order.id)}
-              onConfirmReceipt={() => confirmReceipt(order.id)}
-              onReviewed={() =>
-                setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, reviewed: true } : o)))
-              }
-            />
-          ))}
-        </div>
+        {pets.length === 0 ? (
+          <Card className="p-8 text-center text-sm text-muted-foreground">
+            You don't have any reservations or purchases yet — browse live streams to find your next pet.
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {pets.map((pet) => (
+              <OrderCard key={pet.id} pet={pet} onChanged={refresh} />
+            ))}
+          </div>
+        )}
       </div>
     </SiteShell>
   );
 }
 
-function OrderCard({
-  order,
-  onPayBalance,
-  onConfirmReceipt,
-  onReviewed,
-}: {
-  order: Order;
-  onPayBalance: () => void;
-  onConfirmReceipt: () => void;
-  onReviewed: () => void;
-}) {
-  const puppy = getPuppy(order.puppyId);
-  const balanceDue = order.totalPrice - order.amountPaid;
+function OrderCard({ pet, onChanged }: { pet: Pet; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const balanceDue = pet.price - (pet.escrowHeld ?? 0);
+
+  const handlePayBalance = async () => {
+    setBusy(true);
+    await payBalance({ data: { id: pet.id } });
+    await onChanged();
+    setBusy(false);
+  };
+
+  const handleConfirmReceipt = async () => {
+    setBusy(true);
+    await confirmReceipt({ data: { id: pet.id } });
+    await onChanged();
+    setBusy(false);
+  };
 
   return (
     <Card className="overflow-hidden p-0">
       <div className="flex flex-col gap-4 p-5 sm:flex-row">
-        <img src={puppy.image} alt={puppy.name} className="h-24 w-full rounded-xl object-cover sm:w-24" />
+        <img src={pet.image} alt={pet.name} className="h-24 w-full rounded-xl object-cover sm:w-24" />
 
         <div className="flex-1 space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <h3 className="font-semibold">{puppy.name}</h3>
-              <p className="text-sm text-muted-foreground">{puppy.breed} · Bred by {puppy.breeder}</p>
+              <h3 className="font-semibold">{pet.name}</h3>
+              <p className="text-sm text-muted-foreground">{pet.breed} · Bred by {pet.breederName}</p>
             </div>
-            <StatusPill status={order.status} />
+            <StatusPill status={pet.status} />
           </div>
 
           {/* One plain-language line about the money — the thing buyers actually worry about */}
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Lock className="h-3.5 w-3.5 text-trust" />
-            {order.status === 'Reserved' && (
+            {pet.status === 'Reserved' && (
               <span>
-                ${order.amountPaid.toLocaleString()} held in escrow · ${balanceDue.toLocaleString()} balance due before pickup
+                ${pet.escrowHeld?.toLocaleString()} held in escrow · ${balanceDue.toLocaleString()} balance due before pickup
               </span>
             )}
-            {order.status === 'Sold' && (
-              <span>${order.amountPaid.toLocaleString()} held in escrow · releases to the breeder once you confirm receipt</span>
+            {pet.status === 'Sold' && (
+              <span>${pet.escrowHeld?.toLocaleString()} held in escrow · releases to the breeder once you confirm receipt</span>
             )}
-            {order.status === 'Closed' && (
-              <span>${order.amountPaid.toLocaleString()} released to the breeder — sale closed</span>
+            {pet.status === 'Closed' && (
+              <span>${pet.escrowHeld?.toLocaleString()} released to the breeder — sale closed</span>
             )}
           </div>
 
           {/* The one primary action, changes by stage */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            {order.status === 'Reserved' && (
-              <Button size="sm" onClick={onPayBalance}>
+            {pet.status === 'Reserved' && (
+              <Button size="sm" disabled={busy} onClick={handlePayBalance}>
                 Pay remaining balance (${balanceDue.toLocaleString()})
               </Button>
             )}
-            {order.status === 'Sold' && (
+            {pet.status === 'Sold' && (
               <>
-                <Button size="sm" onClick={onConfirmReceipt}>
+                <Button size="sm" disabled={busy} onClick={handleConfirmReceipt}>
                   <PackageCheck className="h-4 w-4" /> Confirm receipt
                 </Button>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" disabled={busy}>
                   <AlertTriangle className="h-4 w-4" /> Report a problem
                 </Button>
               </>
             )}
-            {order.status === 'Closed' && !order.reviewed && <ReviewForm onSubmit={onReviewed} />}
-            {order.status === 'Closed' && order.reviewed && (
+            {pet.status === 'Closed' && !pet.reviewRating && <ReviewForm petId={pet.id} onSubmitted={onChanged} />}
+            {pet.status === 'Closed' && pet.reviewRating && (
               <span className="flex items-center gap-1 text-xs font-medium text-trust">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Thanks — your review is posted on {puppy.breeder}'s profile
+                <CheckCircle2 className="h-3.5 w-3.5" /> Thanks — your review is posted on {pet.breederName}'s profile
               </span>
             )}
           </div>
@@ -185,8 +176,9 @@ function OrderCard({
   );
 }
 
-function StatusPill({ status }: { status: OrderStatus }) {
-  const map: Record<OrderStatus, { label: string; cls: string; Icon: typeof Clock }> = {
+function StatusPill({ status }: { status: Pet['status'] }) {
+  const map: Record<Pet['status'], { label: string; cls: string; Icon: typeof Clock }> = {
+    Available: { label: 'Available', cls: 'bg-trust/15 text-trust border-trust/30', Icon: Clock },
     Reserved: { label: 'Reserved', cls: 'bg-warm/20 text-warm-foreground border-warm/40', Icon: Clock },
     Sold: { label: 'Paid — awaiting pickup', cls: 'bg-warm/20 text-warm-foreground border-warm/40', Icon: Clock },
     Closed: { label: 'Closed', cls: 'bg-trust/15 text-trust border-trust/30', Icon: ShieldCheck },
@@ -199,10 +191,11 @@ function StatusPill({ status }: { status: OrderStatus }) {
   );
 }
 
-function ReviewForm({ onSubmit }: { onSubmit: () => void }) {
+function ReviewForm({ petId, onSubmitted }: { petId: string; onSubmitted: () => void }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (!open) {
     return (
@@ -211,6 +204,13 @@ function ReviewForm({ onSubmit }: { onSubmit: () => void }) {
       </Button>
     );
   }
+
+  const handleSubmit = async () => {
+    setBusy(true);
+    await submitReview({ data: { id: petId, rating, comment } });
+    await onSubmitted();
+    setBusy(false);
+  };
 
   return (
     <div className="w-full space-y-2 rounded-xl border border-border bg-secondary/30 p-3">
@@ -227,7 +227,7 @@ function ReviewForm({ onSubmit }: { onSubmit: () => void }) {
         onChange={(e) => setComment(e.target.value)}
         className="text-sm"
       />
-      <Button size="sm" disabled={rating === 0} onClick={onSubmit}>
+      <Button size="sm" disabled={rating === 0 || busy} onClick={handleSubmit}>
         Post review
       </Button>
     </div>
