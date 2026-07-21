@@ -77,14 +77,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "LivePaws — Live-streamed pet marketplace" },
+      { name: "description", content: "Watch verified breeders raise litters live and reserve your puppy with an escrow-backed deposit." },
+      { property: "og:title", content: "LivePaws — Live-streamed pet marketplace" },
+      { property: "og:description", content: "Watch litters live from verified breeders and reserve with escrow." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
