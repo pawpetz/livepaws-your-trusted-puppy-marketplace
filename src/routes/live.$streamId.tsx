@@ -163,6 +163,10 @@ const chatUsers = ["Kai", "Zoë", "Sam", "Riley", "Jordan", "Wren", "Ivy", "Theo
 
 function LiveView() {
   const { stream } = Route.useLoaderData();
+  const isCat = stream.species === "cat";
+  const pinnedPuppies = isCat ? catPinned : dogPinned;
+  const registryLabel = stream.registry ?? (isCat ? "TICA Registered" : "USDA Licensed");
+  const kindLabel = isCat ? "kittens" : "puppies";
   const [chat, setChat] = useState<ChatMsg[]>(seedChat);
   const [likes, setLikes] = useState(1284);
   const [liked, setLiked] = useState(false);
