@@ -16,12 +16,18 @@ import {
   Dog,
   PackageCheck,
   Wallet,
+  MapPin,
+  Truck,
+  Home as HomeIcon,
+  CalendarDays,
 } from 'lucide-react';
 import { SiteShell } from '@/components/site-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { addPet, confirmReceipt, listPets, removePet, type Pet, type Species } from '@/lib/pets-store';
@@ -58,7 +64,21 @@ function BreederDashboardPage() {
     { id: '2', title: 'Vet Inspection & Health Certificates', type: 'PDF Document', status: 'Verified', date: '2026-06-20' },
   ]);
 
-  const [newPet, setNewPet] = useState({ species: 'Dog' as Species, name: '', sex: 'Female' as 'Female' | 'Male', collar: '', price: '1500', microchip: '' });
+  const [newPet, setNewPet] = useState({
+    species: 'Dog' as Species,
+    name: '',
+    breed: '',
+    bio: '',
+    ageWeeks: '8',
+    location: '',
+    sex: 'Female' as 'Female' | 'Male',
+    collar: '',
+    price: '1500',
+    microchip: '',
+    pickupAvailable: true,
+    shippingAvailable: false,
+    shippingFee: '250',
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const handleAddPet = async (e: React.FormEvent) => {
@@ -69,14 +89,35 @@ function BreederDashboardPage() {
       data: {
         species: newPet.species,
         name: newPet.name,
+        breed: newPet.breed,
+        bio: newPet.bio,
+        ageWeeks: Number(newPet.ageWeeks) || 8,
+        location: newPet.location,
         sex: newPet.sex,
         collar: newPet.collar || 'No ID Tag',
         price: Number(newPet.price),
         microchip: newPet.microchip || 'Pending Microchip',
         breederName: BREEDER_NAME,
+        pickupAvailable: newPet.pickupAvailable,
+        shippingAvailable: newPet.shippingAvailable,
+        shippingFee: Number(newPet.shippingFee) || undefined,
       },
     });
-    setNewPet({ species: 'Dog', name: '', sex: 'Female', collar: '', price: '1500', microchip: '' });
+    setNewPet({
+      species: 'Dog',
+      name: '',
+      breed: '',
+      bio: '',
+      ageWeeks: '8',
+      location: '',
+      sex: 'Female',
+      collar: '',
+      price: '1500',
+      microchip: '',
+      pickupAvailable: true,
+      shippingAvailable: false,
+      shippingFee: '250',
+    });
     await refresh();
     setSubmitting(false);
   };
@@ -188,6 +229,17 @@ function BreederDashboardPage() {
                     />
                   </div>
 
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pet-breed">Breed</Label>
+                    <Input
+                      id="pet-breed"
+                      required
+                      placeholder="e.g. Golden Retriever"
+                      value={newPet.breed}
+                      onChange={(e) => setNewPet({ ...newPet, breed: e.target.value })}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="pet-sex">Gender</Label>
@@ -214,6 +266,42 @@ function BreederDashboardPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
+                      <Label htmlFor="pet-age">Age (weeks)</Label>
+                      <Input
+                        id="pet-age"
+                        type="number"
+                        min={1}
+                        required
+                        value={newPet.ageWeeks}
+                        onChange={(e) => setNewPet({ ...newPet, ageWeeks: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="pet-location">Location</Label>
+                      <Input
+                        id="pet-location"
+                        required
+                        placeholder="e.g. Bend, OR"
+                        value={newPet.location}
+                        onChange={(e) => setNewPet({ ...newPet, location: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pet-bio">Bio</Label>
+                    <Textarea
+                      id="pet-bio"
+                      required
+                      placeholder="Temperament, what makes them unique, how they're doing so far..."
+                      value={newPet.bio}
+                      onChange={(e) => setNewPet({ ...newPet, bio: e.target.value })}
+                      className="min-h-16 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
                       <Label htmlFor="pet-price">Price ($)</Label>
                       <Input
                         id="pet-price"
@@ -232,6 +320,35 @@ function BreederDashboardPage() {
                         onChange={(e) => setNewPet({ ...newPet, microchip: e.target.value })}
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2 rounded-xl border border-border bg-secondary/30 p-3">
+                    <Label className="mb-1 block text-muted-foreground">Fulfillment options</Label>
+                    <label className="flex items-center gap-2">
+                      <Checkbox
+                        checked={newPet.pickupAvailable}
+                        onCheckedChange={(v) => setNewPet({ ...newPet, pickupAvailable: !!v })}
+                      />
+                      Local pickup available
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <Checkbox
+                        checked={newPet.shippingAvailable}
+                        onCheckedChange={(v) => setNewPet({ ...newPet, shippingAvailable: !!v })}
+                      />
+                      Nationwide shipping available
+                    </label>
+                    {newPet.shippingAvailable && (
+                      <div className="space-y-1.5 pl-6">
+                        <Label htmlFor="pet-shipping-fee">Shipping fee ($)</Label>
+                        <Input
+                          id="pet-shipping-fee"
+                          type="number"
+                          value={newPet.shippingFee}
+                          onChange={(e) => setNewPet({ ...newPet, shippingFee: e.target.value })}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <Button type="submit" disabled={submitting} className="mt-2 w-full">
@@ -256,10 +373,19 @@ function BreederDashboardPage() {
                           </span>
                         </div>
                         <p className="pl-8 text-xs text-muted-foreground">
-                          {p.sex} • {p.collar} • Microchip:{' '}
+                          {p.breed} • {p.sex} • {p.collar} • Microchip:{' '}
                           <span className="font-mono text-foreground/80">{p.microchip}</span>
                           {p.buyerName && <> • Buyer: <span className="text-foreground/80">{p.buyerName}</span></>}
                         </p>
+                        <div className="flex flex-wrap items-center gap-3 pl-8 text-[11px] text-muted-foreground">
+                          <span className="flex items-center gap-1"><CalendarDays size={12} /> {p.ageWeeks} weeks old</span>
+                          <span className="flex items-center gap-1"><MapPin size={12} /> {p.location}</span>
+                          {p.pickupAvailable && <span className="flex items-center gap-1"><HomeIcon size={12} /> Pickup</span>}
+                          {p.shippingAvailable && (
+                            <span className="flex items-center gap-1"><Truck size={12} /> Ships (${p.shippingFee})</span>
+                          )}
+                        </div>
+                        {p.bio && <p className="max-w-md pl-8 text-xs text-muted-foreground/80">{p.bio}</p>}
                       </div>
 
                       <div className="flex items-center gap-4">
