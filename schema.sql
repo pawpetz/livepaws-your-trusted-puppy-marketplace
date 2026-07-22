@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS breeders (
   password TEXT NOT NULL, -- TODO: hash before real users touch this
   usda_license TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
-  applied_at TEXT NOT NULL
+  applied_at TEXT NOT NULL,
+  is_live BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
