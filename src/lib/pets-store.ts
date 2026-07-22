@@ -38,6 +38,7 @@ export type Pet = {
   microchip: string;
   breederName: string;
   buyerName?: string;
+  buyerEmail?: string;
   escrowHeld?: number;
   reviewRating?: number;
   reviewComment?: string;
@@ -82,6 +83,7 @@ type PetRow = {
   microchip: string;
   breeder_name: string;
   buyer_name: string | null;
+  buyer_email: string | null;
   escrow_held: number | null;
   review_rating: number | null;
   review_comment: string | null;
@@ -110,6 +112,7 @@ function rowToPet(r: PetRow): Pet {
     microchip: r.microchip,
     breederName: r.breeder_name,
     buyerName: r.buyer_name ?? undefined,
+    buyerEmail: r.buyer_email ?? undefined,
     escrowHeld: r.escrow_held ?? undefined,
     reviewRating: r.review_rating ?? undefined,
     reviewComment: r.review_comment ?? undefined,
@@ -214,11 +217,11 @@ export const updatePet = createServerFn({ method: 'POST' })
 
 // Reserve with a deposit (checkout "reservation" path)
 export const reservePet = createServerFn({ method: 'POST' })
-  .validator((input: { id: string; buyerName: string }) => input)
+  .validator((input: { id: string; buyerName: string; buyerEmail: string }) => input)
   .handler(async ({ data }) => {
     const sql = getSql();
     const rows = (await sql`
-      UPDATE pets SET status = 'Reserved', sale_type = 'deposit', buyer_name = ${data.buyerName}, escrow_held = deposit
+      UPDATE pets SET status = 'Reserved', sale_type = 'deposit', buyer_name = ${data.buyerName}, buyer_email = ${data.buyerEmail}, escrow_held = deposit
       WHERE id = ${data.id}
       RETURNING *
     `) as PetRow[];
@@ -227,11 +230,11 @@ export const reservePet = createServerFn({ method: 'POST' })
 
 // Pay in full up front (checkout "full payment" path)
 export const buyFullPrice = createServerFn({ method: 'POST' })
-  .validator((input: { id: string; buyerName: string }) => input)
+  .validator((input: { id: string; buyerName: string; buyerEmail: string }) => input)
   .handler(async ({ data }) => {
     const sql = getSql();
     const rows = (await sql`
-      UPDATE pets SET status = 'Sold', sale_type = 'full', buyer_name = ${data.buyerName}, escrow_held = price
+      UPDATE pets SET status = 'Sold', sale_type = 'full', buyer_name = ${data.buyerName}, buyer_email = ${data.buyerEmail}, escrow_held = price
       WHERE id = ${data.id}
       RETURNING *
     `) as PetRow[];
