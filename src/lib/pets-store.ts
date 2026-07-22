@@ -1,19 +1,14 @@
+import { neon } from '@neondatabase/serverless';
 import { createServerFn } from '@tanstack/react-start';
 
 /* ------------------------------------------------------------
-   Shared data layer for LivePaws.
+   Shared data layer for LivePaws — now backed by a real Postgres
+   database (Neon, connected via Vercel). This replaces the old
+   in-memory version: data now survives redeploys and restarts.
 
-   NOTE ON PERSISTENCE: this store lives in the server process's
-   memory. It's real shared state — the buyer portal and breeder
-   dashboard both read and write through it, so actions on one
-   side now actually show up on the other. But it resets on
-   redeploy/restart, and won't stay consistent across multiple
-   edge instances once this is deployed to Cloudflare Workers.
-
-   This is the seam to swap in a real database (Cloudflare D1 is
-   the natural fit given this project's nitro/cloudflare deploy
-   target). Nothing calling these server functions needs to
-   change when that happens — only the internals of this file do.
+   DATABASE_URL is set automatically by Vercel once the Neon
+   database is connected to this project (Storage tab -> Connect).
+   Locally, run `vercel env pull .env.development.local` to get it.
 ------------------------------------------------------------ */
 
 export type Species = 'Dog' | 'Cat';
@@ -57,76 +52,75 @@ const defaultImage = (species: Species) =>
     ? 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=800&q=60'
     : 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&w=800&q=60';
 
-let pets: Pet[] = [
-  {
-    id: '1',
-    species: 'Dog',
-    name: 'Puppy #1 (Light Cream)',
-    breed: 'Golden Retriever',
-    bio: 'Playful and affectionate, already crate-training well. Loves belly rubs and squeaky toys.',
-    ageWeeks: 9,
-    location: 'Bend, OR',
-    image: defaultImage('Dog'),
-    sex: 'Female',
-    collar: 'Pink Collar',
-    price: 1800,
-    deposit: 250,
-    saleType: 'deposit',
-    status: 'Reserved',
-    microchip: '9851410029381',
-    breederName: DEMO_BREEDER_NAME,
-    buyerName: 'Sarah Miller',
-    escrowHeld: 250,
-    pickupAvailable: true,
-    shippingAvailable: true,
-    shippingFee: 250,
-  },
-  {
-    id: '2',
-    species: 'Cat',
-    name: 'Kitten #1 (Blue Point Ragdoll)',
-    breed: 'Ragdoll',
-    bio: 'Gentle lap cat in training — calm around noise and already used to being handled daily.',
-    ageWeeks: 10,
-    location: 'Bend, OR',
-    image: defaultImage('Cat'),
-    sex: 'Male',
-    collar: 'Blue Collar',
-    price: 1500,
-    deposit: 200,
-    saleType: null,
-    status: 'Available',
-    microchip: '9851410029399',
-    breederName: DEMO_BREEDER_NAME,
-    pickupAvailable: true,
-    shippingAvailable: false,
-  },
-  {
-    id: '3',
-    species: 'Dog',
-    name: 'Puppy #3 (Dark Golden)',
-    breed: 'Golden Retriever',
-    bio: 'The bold one of the litter — first to explore new toys, good with other dogs.',
-    ageWeeks: 9,
-    location: 'Bend, OR',
-    image: defaultImage('Dog'),
-    sex: 'Male',
-    collar: 'Green Collar',
-    price: 1800,
-    deposit: 250,
-    saleType: 'full',
-    status: 'Sold',
-    microchip: '9851410029383',
-    breederName: DEMO_BREEDER_NAME,
-    buyerName: 'Marcus Vance',
-    escrowHeld: 1800,
-    pickupAvailable: true,
-    shippingAvailable: true,
-    shippingFee: 250,
-  },
-];
+function getSql() {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      'DATABASE_URL is not set. Connect a Neon/Postgres database to this project in Vercel (Storage tab) and redeploy.',
+    );
+  }
+  return neon(url);
+}
 
-export const listPets = createServerFn({ method: 'GET' }).handler(async () => pets);
+type PetRow = {
+  id: string;
+  species: string;
+  name: string;
+  breed: string;
+  bio: string;
+  age_weeks: number;
+  location: string;
+  image: string;
+  sex: string;
+  collar: string;
+  price: number;
+  deposit: number;
+  sale_type: string | null;
+  status: string;
+  microchip: string;
+  breeder_name: string;
+  buyer_name: string | null;
+  escrow_held: number | null;
+  review_rating: number | null;
+  review_comment: string | null;
+  pickup_available: boolean;
+  shipping_available: boolean;
+  shipping_fee: number | null;
+};
+
+function rowToPet(r: PetRow): Pet {
+  return {
+    id: r.id,
+    species: r.species as Species,
+    name: r.name,
+    breed: r.breed,
+    bio: r.bio,
+    ageWeeks: r.age_weeks,
+    location: r.location,
+    image: r.image,
+    sex: r.sex as 'Female' | 'Male',
+    collar: r.collar,
+    price: r.price,
+    deposit: r.deposit,
+    saleType: (r.sale_type as SaleType | null) ?? null,
+    status: r.status as PetStatus,
+    microchip: r.microchip,
+    breederName: r.breeder_name,
+    buyerName: r.buyer_name ?? undefined,
+    escrowHeld: r.escrow_held ?? undefined,
+    reviewRating: r.review_rating ?? undefined,
+    reviewComment: r.review_comment ?? undefined,
+    pickupAvailable: r.pickup_available,
+    shippingAvailable: r.shipping_available,
+    shippingFee: r.shipping_fee ?? undefined,
+  };
+}
+
+export const listPets = createServerFn({ method: 'GET' }).handler(async () => {
+  const sql = getSql();
+  const rows = (await sql`SELECT * FROM pets ORDER BY id`) as PetRow[];
+  return rows.map(rowToPet);
+});
 
 export const addPet = createServerFn({ method: 'POST' })
   .validator(
@@ -149,35 +143,23 @@ export const addPet = createServerFn({ method: 'POST' })
     }) => input,
   )
   .handler(async ({ data }) => {
-    const pet: Pet = {
-      id: crypto.randomUUID(),
-      species: data.species,
-      name: data.name,
-      breed: data.breed || 'Mixed breed',
-      bio: data.bio,
-      ageWeeks: data.ageWeeks,
-      location: data.location,
-      image: data.image ?? defaultImage(data.species),
-      sex: data.sex,
-      collar: data.collar,
-      price: data.price,
-      deposit: 250,
-      saleType: null,
-      status: 'Available',
-      microchip: data.microchip,
-      breederName: data.breederName,
-      pickupAvailable: data.pickupAvailable,
-      shippingAvailable: data.shippingAvailable,
-      shippingFee: data.shippingAvailable ? data.shippingFee : undefined,
-    };
-    pets = [...pets, pet];
-    return pet;
+    const sql = getSql();
+    const id = crypto.randomUUID();
+    const image = data.image ?? defaultImage(data.species);
+    const shippingFee = data.shippingAvailable ? data.shippingFee ?? null : null;
+    const rows = (await sql`
+      INSERT INTO pets (id, species, name, breed, bio, age_weeks, location, image, sex, collar, price, deposit, sale_type, status, microchip, breeder_name, pickup_available, shipping_available, shipping_fee)
+      VALUES (${id}, ${data.species}, ${data.name}, ${data.breed || 'Mixed breed'}, ${data.bio}, ${data.ageWeeks}, ${data.location}, ${image}, ${data.sex}, ${data.collar}, ${data.price}, 250, NULL, 'Available', ${data.microchip}, ${data.breederName}, ${data.pickupAvailable}, ${data.shippingAvailable}, ${shippingFee})
+      RETURNING *
+    `) as PetRow[];
+    return rowToPet(rows[0]);
   });
 
 export const removePet = createServerFn({ method: 'POST' })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    pets = pets.filter((p) => p.id !== data.id);
+    const sql = getSql();
+    await sql`DELETE FROM pets WHERE id = ${data.id}`;
     return { id: data.id };
   });
 
@@ -190,85 +172,111 @@ export const updatePet = createServerFn({ method: 'POST' })
   .validator(
     (input: {
       id: string;
-      name?: string;
-      breed?: string;
-      bio?: string;
-      ageWeeks?: number;
-      location?: string;
-      price?: number;
-      image?: string;
-      pickupAvailable?: boolean;
-      shippingAvailable?: boolean;
+      name: string;
+      breed: string;
+      bio: string;
+      ageWeeks: number;
+      location: string;
+      price: number;
+      pickupAvailable: boolean;
+      shippingAvailable: boolean;
       shippingFee?: number;
     }) => input,
   )
   .handler(async ({ data }) => {
-    const { id, ...changes } = data;
-    pets = pets.map((p) => (p.id === id ? { ...p, ...changes } : p));
-    return pets.find((p) => p.id === id);
+    const sql = getSql();
+    const shippingFee = data.shippingAvailable ? data.shippingFee ?? null : null;
+    const rows = (await sql`
+      UPDATE pets SET
+        name = ${data.name},
+        breed = ${data.breed},
+        bio = ${data.bio},
+        age_weeks = ${data.ageWeeks},
+        location = ${data.location},
+        price = ${data.price},
+        pickup_available = ${data.pickupAvailable},
+        shipping_available = ${data.shippingAvailable},
+        shipping_fee = ${shippingFee}
+      WHERE id = ${data.id}
+      RETURNING *
+    `) as PetRow[];
+    return rows[0] ? rowToPet(rows[0]) : undefined;
   });
 
 // Reserve with a deposit (checkout "reservation" path)
 export const reservePet = createServerFn({ method: 'POST' })
   .validator((input: { id: string; buyerName: string }) => input)
   .handler(async ({ data }) => {
-    pets = pets.map((p) =>
-      p.id === data.id
-        ? { ...p, status: 'Reserved', saleType: 'deposit', buyerName: data.buyerName, escrowHeld: p.deposit }
-        : p,
-    );
-    return pets.find((p) => p.id === data.id);
+    const sql = getSql();
+    const rows = (await sql`
+      UPDATE pets SET status = 'Reserved', sale_type = 'deposit', buyer_name = ${data.buyerName}, escrow_held = deposit
+      WHERE id = ${data.id}
+      RETURNING *
+    `) as PetRow[];
+    return rows[0] ? rowToPet(rows[0]) : undefined;
   });
 
 // Pay in full up front (checkout "full payment" path)
 export const buyFullPrice = createServerFn({ method: 'POST' })
   .validator((input: { id: string; buyerName: string }) => input)
   .handler(async ({ data }) => {
-    pets = pets.map((p) =>
-      p.id === data.id
-        ? { ...p, status: 'Sold', saleType: 'full', buyerName: data.buyerName, escrowHeld: p.price }
-        : p,
-    );
-    return pets.find((p) => p.id === data.id);
+    const sql = getSql();
+    const rows = (await sql`
+      UPDATE pets SET status = 'Sold', sale_type = 'full', buyer_name = ${data.buyerName}, escrow_held = price
+      WHERE id = ${data.id}
+      RETURNING *
+    `) as PetRow[];
+    return rows[0] ? rowToPet(rows[0]) : undefined;
   });
 
 // Pay the remaining balance on a reserved (deposit) pet
 export const payBalance = createServerFn({ method: 'POST' })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    pets = pets.map((p) => (p.id === data.id ? { ...p, status: 'Sold', escrowHeld: p.price } : p));
-    return pets.find((p) => p.id === data.id);
+    const sql = getSql();
+    const rows = (await sql`
+      UPDATE pets SET status = 'Sold', escrow_held = price
+      WHERE id = ${data.id}
+      RETURNING *
+    `) as PetRow[];
+    return rows[0] ? rowToPet(rows[0]) : undefined;
   });
 
 // Buyer confirms receipt -> escrow releases -> sale closes
 export const confirmReceipt = createServerFn({ method: 'POST' })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    pets = pets.map((p) => (p.id === data.id ? { ...p, status: 'Closed' } : p));
-    return pets.find((p) => p.id === data.id);
+    const sql = getSql();
+    const rows = (await sql`
+      UPDATE pets SET status = 'Closed'
+      WHERE id = ${data.id}
+      RETURNING *
+    `) as PetRow[];
+    return rows[0] ? rowToPet(rows[0]) : undefined;
   });
 
 export const submitReview = createServerFn({ method: 'POST' })
   .validator((input: { id: string; rating: number; comment: string }) => input)
   .handler(async ({ data }) => {
-    pets = pets.map((p) =>
-      p.id === data.id ? { ...p, reviewRating: data.rating, reviewComment: data.comment } : p,
-    );
-    return pets.find((p) => p.id === data.id);
+    const sql = getSql();
+    const rows = (await sql`
+      UPDATE pets SET review_rating = ${data.rating}, review_comment = ${data.comment}
+      WHERE id = ${data.id}
+      RETURNING *
+    `) as PetRow[];
+    return rows[0] ? rowToPet(rows[0]) : undefined;
   });
 
 /* ------------------------------------------------------------
    Breeder documents (licenses, health certs, etc). Real uploads
-   go in here as "Pending Review" — nothing self-certifies as
-   "Verified". In a production build, moving a document from
-   Pending to Verified is exactly the job of the admin/trust &
-   safety dashboard we scoped earlier, not something a breeder
-   can flip on their own listing.
+   go in here as "Pending Review" — nothing self-certifies. Moving
+   a document from Pending to Verified is the admin/trust & safety
+   dashboard's job, not something a breeder can toggle themselves.
 
-   NOTE: for now this stores file name + type only, not the file
-   bytes — there's no object storage (e.g. Cloudflare R2) wired
-   up yet, so the actual uploaded file isn't persisted anywhere.
-   That's the next real piece of work here.
+   NOTE: this stores file name + type only, not the file bytes —
+   there's no object storage (e.g. Vercel Blob) wired up yet, so
+   the actual uploaded file isn't persisted anywhere. That's the
+   next natural piece of work here.
 ------------------------------------------------------------ */
 
 export type DocumentStatus = 'Verified' | 'Pending Review';
@@ -282,47 +290,52 @@ export type BreederDocument = {
   uploadedAt: string;
 };
 
-let documents: BreederDocument[] = [
-  {
-    id: 'd1',
-    breederName: DEMO_BREEDER_NAME,
-    title: 'State Breeder License / Registration',
-    fileName: 'breeder-license.pdf',
-    status: 'Verified',
-    uploadedAt: '2026-01-15',
-  },
-  {
-    id: 'd2',
-    breederName: DEMO_BREEDER_NAME,
-    title: 'Vet Inspection & Health Certificates',
-    fileName: 'vet-inspection-2026.pdf',
-    status: 'Verified',
-    uploadedAt: '2026-06-20',
-  },
-];
+type DocumentRow = {
+  id: string;
+  breeder_name: string;
+  title: string;
+  file_name: string;
+  status: string;
+  uploaded_at: string;
+};
+
+function rowToDocument(r: DocumentRow): BreederDocument {
+  return {
+    id: r.id,
+    breederName: r.breeder_name,
+    title: r.title,
+    fileName: r.file_name,
+    status: r.status as DocumentStatus,
+    uploadedAt: r.uploaded_at,
+  };
+}
 
 export const listDocuments = createServerFn({ method: 'GET' })
   .validator((input: { breederName: string }) => input)
-  .handler(async ({ data }) => documents.filter((d) => d.breederName === data.breederName));
+  .handler(async ({ data }) => {
+    const sql = getSql();
+    const rows = (await sql`SELECT * FROM documents WHERE breeder_name = ${data.breederName} ORDER BY uploaded_at DESC`) as DocumentRow[];
+    return rows.map(rowToDocument);
+  });
 
 export const addDocument = createServerFn({ method: 'POST' })
   .validator((input: { breederName: string; title: string; fileName: string }) => input)
   .handler(async ({ data }) => {
-    const doc: BreederDocument = {
-      id: crypto.randomUUID(),
-      breederName: data.breederName,
-      title: data.title,
-      fileName: data.fileName,
-      status: 'Pending Review',
-      uploadedAt: new Date().toISOString().slice(0, 10),
-    };
-    documents = [...documents, doc];
-    return doc;
+    const sql = getSql();
+    const id = crypto.randomUUID();
+    const uploadedAt = new Date().toISOString().slice(0, 10);
+    const rows = (await sql`
+      INSERT INTO documents (id, breeder_name, title, file_name, status, uploaded_at)
+      VALUES (${id}, ${data.breederName}, ${data.title}, ${data.fileName}, 'Pending Review', ${uploadedAt})
+      RETURNING *
+    `) as DocumentRow[];
+    return rowToDocument(rows[0]);
   });
 
 export const removeDocument = createServerFn({ method: 'POST' })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    documents = documents.filter((d) => d.id !== data.id);
+    const sql = getSql();
+    await sql`DELETE FROM documents WHERE id = ${data.id}`;
     return { id: data.id };
   });
