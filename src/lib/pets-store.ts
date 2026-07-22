@@ -50,6 +50,8 @@ export type Pet = {
   shippingFee?: number;
 };
 
+export const DEMO_BREEDER_NAME = 'Oakwood Paws & Cattery Studio';
+
 const defaultImage = (species: Species) =>
   species === 'Dog'
     ? 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=800&q=60'
@@ -72,7 +74,7 @@ let pets: Pet[] = [
     saleType: 'deposit',
     status: 'Reserved',
     microchip: '9851410029381',
-    breederName: 'Oakwood Paws & Cattery Studio',
+    breederName: DEMO_BREEDER_NAME,
     buyerName: 'Sarah Miller',
     escrowHeld: 250,
     pickupAvailable: true,
@@ -95,7 +97,7 @@ let pets: Pet[] = [
     saleType: null,
     status: 'Available',
     microchip: '9851410029399',
-    breederName: 'Oakwood Paws & Cattery Studio',
+    breederName: DEMO_BREEDER_NAME,
     pickupAvailable: true,
     shippingAvailable: false,
   },
@@ -115,7 +117,7 @@ let pets: Pet[] = [
     saleType: 'full',
     status: 'Sold',
     microchip: '9851410029383',
-    breederName: 'Oakwood Paws & Cattery Studio',
+    breederName: DEMO_BREEDER_NAME,
     buyerName: 'Marcus Vance',
     escrowHeld: 1800,
     pickupAvailable: true,
@@ -179,6 +181,33 @@ export const removePet = createServerFn({ method: 'POST' })
     return { id: data.id };
   });
 
+// Lets a breeder correct/update a listing after the fact — price, bio,
+// age, location, photo, and fulfillment options. Intentionally does NOT
+// allow editing status/buyer/escrow fields; those only change through the
+// dedicated sale-lifecycle functions below, so a listing edit can never
+// accidentally rewrite an in-progress transaction.
+export const updatePet = createServerFn({ method: 'POST' })
+  .validator(
+    (input: {
+      id: string;
+      name?: string;
+      breed?: string;
+      bio?: string;
+      ageWeeks?: number;
+      location?: string;
+      price?: number;
+      image?: string;
+      pickupAvailable?: boolean;
+      shippingAvailable?: boolean;
+      shippingFee?: number;
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    const { id, ...changes } = data;
+    pets = pets.map((p) => (p.id === id ? { ...p, ...changes } : p));
+    return pets.find((p) => p.id === id);
+  });
+
 // Reserve with a deposit (checkout "reservation" path)
 export const reservePet = createServerFn({ method: 'POST' })
   .validator((input: { id: string; buyerName: string }) => input)
@@ -226,4 +255,74 @@ export const submitReview = createServerFn({ method: 'POST' })
       p.id === data.id ? { ...p, reviewRating: data.rating, reviewComment: data.comment } : p,
     );
     return pets.find((p) => p.id === data.id);
+  });
+
+/* ------------------------------------------------------------
+   Breeder documents (licenses, health certs, etc). Real uploads
+   go in here as "Pending Review" — nothing self-certifies as
+   "Verified". In a production build, moving a document from
+   Pending to Verified is exactly the job of the admin/trust &
+   safety dashboard we scoped earlier, not something a breeder
+   can flip on their own listing.
+
+   NOTE: for now this stores file name + type only, not the file
+   bytes — there's no object storage (e.g. Cloudflare R2) wired
+   up yet, so the actual uploaded file isn't persisted anywhere.
+   That's the next real piece of work here.
+------------------------------------------------------------ */
+
+export type DocumentStatus = 'Verified' | 'Pending Review';
+
+export type BreederDocument = {
+  id: string;
+  breederName: string;
+  title: string;
+  fileName: string;
+  status: DocumentStatus;
+  uploadedAt: string;
+};
+
+let documents: BreederDocument[] = [
+  {
+    id: 'd1',
+    breederName: DEMO_BREEDER_NAME,
+    title: 'State Breeder License / Registration',
+    fileName: 'breeder-license.pdf',
+    status: 'Verified',
+    uploadedAt: '2026-01-15',
+  },
+  {
+    id: 'd2',
+    breederName: DEMO_BREEDER_NAME,
+    title: 'Vet Inspection & Health Certificates',
+    fileName: 'vet-inspection-2026.pdf',
+    status: 'Verified',
+    uploadedAt: '2026-06-20',
+  },
+];
+
+export const listDocuments = createServerFn({ method: 'GET' })
+  .validator((input: { breederName: string }) => input)
+  .handler(async ({ data }) => documents.filter((d) => d.breederName === data.breederName));
+
+export const addDocument = createServerFn({ method: 'POST' })
+  .validator((input: { breederName: string; title: string; fileName: string }) => input)
+  .handler(async ({ data }) => {
+    const doc: BreederDocument = {
+      id: crypto.randomUUID(),
+      breederName: data.breederName,
+      title: data.title,
+      fileName: data.fileName,
+      status: 'Pending Review',
+      uploadedAt: new Date().toISOString().slice(0, 10),
+    };
+    documents = [...documents, doc];
+    return doc;
+  });
+
+export const removeDocument = createServerFn({ method: 'POST' })
+  .validator((input: { id: string }) => input)
+  .handler(async ({ data }) => {
+    documents = documents.filter((d) => d.id !== data.id);
+    return { id: data.id };
   });
