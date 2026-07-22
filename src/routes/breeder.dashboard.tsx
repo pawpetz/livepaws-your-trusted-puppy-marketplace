@@ -22,8 +22,12 @@ import {
   Pencil,
   ImagePlus,
   Hourglass,
+  Pin,
+  PinOff,
+  Send,
 } from 'lucide-react';
 import { AgoraBroadcast } from '@/components/agora-broadcast';
+import { listMessages, pinMessage, sendMessage, unpinMessage, type ChatMessage } from '@/lib/chat-store';
 import { SiteShell } from '@/components/site-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
@@ -855,6 +859,11 @@ function BreederDashboardPage() {
                 onOffline={() => breeder && setBreederLive({ data: { id: breeder.id, isLive: false } })}
               />
             </Card>
+
+            <Card className="mt-4 max-w-2xl p-6">
+              <CardTitle className="mb-3 text-lg">Live Q&amp;A</CardTitle>
+              <BreederChatPanel channelSlug={slugify(businessName)} businessName={businessName} />
+            </Card>
           </TabsContent>
 
           {/* TAB 4: ESCROW SALES LEDGER — driven directly from the shared pets store */}
@@ -1009,3 +1018,95 @@ function BreederDashboardPage() {
 }
 
 export default BreederDashboardPage;
+
+function BreederChatPanel({ channelSlug, businessName }: { channelSlug: string; businessName: string }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      const msgs = await listMessages({ data: { channelSlug } });
+      if (!cancelled) setMessages(msgs);
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [channelSlug]);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    const text = input;
+    setInput('');
+    const msg = await sendMessage({ data: { channelSlug, userName: businessName, text, isBreeder: true } });
+    setMessages((prev) => [...prev, msg]);
+  };
+
+  const handlePin = async (id: string) => {
+    await pinMessage({ data: { id, channelSlug } });
+    setMessages((prev) => prev.map((m) => ({ ...m, pinned: m.id === id })));
+  };
+
+  const handleUnpin = async (id: string) => {
+    await unpinMessage({ data: { id } });
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, pinned: false } : m)));
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-border bg-secondary/20 p-3">
+        {messages.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No questions yet — they'll show up here once you're live.</p>
+        ) : (
+          messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={
+                'flex items-start justify-between gap-2 rounded-lg p-2.5 text-xs ' +
+                (msg.isBreeder ? 'bg-primary/10' : 'bg-background')
+              }
+            >
+              <div className="min-w-0">
+                <span className="font-semibold">
+                  {msg.userName}
+                  {msg.isBreeder && ' (you)'}
+                </span>
+                <p className="text-muted-foreground">{msg.text}</p>
+                {msg.flagged && (
+                  <p className="mt-0.5 text-[10px] text-warm-foreground">Contact info was auto-hidden here.</p>
+                )}
+              </div>
+              {!msg.isBreeder && (
+                <button
+                  onClick={() => (msg.pinned ? handleUnpin(msg.id) : handlePin(msg.id))}
+                  className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-secondary"
+                  aria-label={msg.pinned ? 'Unpin' : 'Pin as featured question'}
+                >
+                  {msg.pinned ? <PinOff size={14} className="text-primary" /> : <Pin size={14} />}
+                </button>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+      <form onSubmit={handleSend} className="flex gap-2">
+        <Input
+          placeholder="Reply to a question…"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="text-sm"
+        />
+        <Button type="submit" size="sm">
+          <Send size={14} />
+        </Button>
+      </form>
+      <p className="text-[11px] text-muted-foreground">
+        Pin a question to feature it prominently for everyone currently watching.
+      </p>
+    </div>
+  );
+}
