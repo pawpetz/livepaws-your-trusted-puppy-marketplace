@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import React, { useEffect, useState } from 'react';
 import {
   ShieldCheck,
@@ -14,13 +14,17 @@ import {
   CalendarDays,
   Truck,
   Home as HomeIcon,
+  LogIn,
 } from 'lucide-react';
 import { SiteShell } from '@/components/site-shell';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { confirmReceipt, listPets, payBalance, submitReview, type Pet } from '@/lib/pets-store';
+import { getSessionBuyer, loginBuyer, logoutBuyer, signupBuyer, type BuyerAccount } from '@/lib/buyer-auth';
 
 export const Route = createFileRoute('/account')({
   head: () => ({
@@ -29,29 +33,67 @@ export const Route = createFileRoute('/account')({
   component: AccountPage,
 });
 
-// No auth system yet, so "my pets" stands in for whichever buyer name is
-// on the record. Once real accounts exist, this filter becomes "buyerId ===
-// current user" instead of a hardcoded name — the rest of this page doesn't
-// need to change.
-const CURRENT_BUYER = null; // null = show every pet that has any buyer, for demo purposes
-
 function AccountPage() {
+  const [buyer, setBuyer] = useState<BuyerAccount | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const token = localStorage.getItem('livepaws_buyer_token');
+    if (!token) {
+      setAuthChecked(true);
+      setLoading(false);
+      return;
+    }
+    getSessionBuyer({ data: { token } }).then((account) => {
+      if (!account) localStorage.removeItem('livepaws_buyer_token');
+      setBuyer(account);
+      setAuthChecked(true);
+    });
+  }, []);
+
   const refresh = async () => {
+    if (!buyer) return;
     const data = await listPets();
-    setPets(data.filter((p) => (CURRENT_BUYER ? p.buyerName === CURRENT_BUYER : !!p.buyerName)));
+    setPets(data.filter((p) => p.buyerEmail === buyer.email));
   };
 
   useEffect(() => {
-    refresh().finally(() => setLoading(false));
-  }, []);
+    if (!authChecked) return;
+    if (buyer) {
+      refresh().finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked, buyer]);
 
-  if (loading) {
+  const handleLogout = async () => {
+    const token = localStorage.getItem('livepaws_buyer_token');
+    if (token) await logoutBuyer({ data: { token } });
+    localStorage.removeItem('livepaws_buyer_token');
+    setBuyer(null);
+    setPets([]);
+  };
+
+  if (!authChecked || loading) {
     return (
       <SiteShell>
-        <div className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground sm:px-6">Loading your pets…</div>
+        <div className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground sm:px-6">Loading…</div>
+      </SiteShell>
+    );
+  }
+
+  if (!buyer) {
+    return (
+      <SiteShell>
+        <BuyerAuthGate
+          onAuthed={(account, token) => {
+            localStorage.setItem('livepaws_buyer_token', token);
+            setBuyer(account);
+          }}
+        />
       </SiteShell>
     );
   }
@@ -59,11 +101,17 @@ function AccountPage() {
   return (
     <SiteShell>
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">My pets</h1>
-          <p className="text-sm text-muted-foreground">
-            Track your reservations, your money in escrow, and confirm receipt when your pet arrives.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">My pets</h1>
+            <p className="text-sm text-muted-foreground">
+              Signed in as {buyer.name} · Track your reservations, your money in escrow, and confirm receipt
+              when your pet arrives.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleLogout}>
+            Log out
+          </Button>
         </div>
 
         {pets.length === 0 ? (
@@ -79,6 +127,100 @@ function AccountPage() {
         )}
       </div>
     </SiteShell>
+  );
+}
+
+function BuyerAuthGate({ onAuthed }: { onAuthed: (account: BuyerAccount, token: string) => void }) {
+  const [mode, setMode] = useState<'signup' | 'signin'>('signup');
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    const res =
+      mode === 'signup'
+        ? await signupBuyer({ data: { name: form.name, email: form.email, password: form.password } })
+        : await loginBuyer({ data: { email: form.email, password: form.password } });
+    setSubmitting(false);
+    if (!res.ok) {
+      setError('error' in res ? res.error : 'Something went wrong.');
+      return;
+    }
+    onAuthed(res.buyer, res.token);
+  };
+
+  return (
+    <div className="mx-auto max-w-sm space-y-6 px-4 py-14 sm:px-6">
+      <div className="text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary">
+          <LogIn size={20} />
+        </div>
+        <h1 className="text-xl font-bold">{mode === 'signup' ? 'Create your account' : 'Sign in'}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Sign in to reserve pets, chat during live streams, and track your orders.
+        </p>
+      </div>
+
+      <div className="flex justify-center gap-2 text-sm">
+        <button
+          onClick={() => setMode('signup')}
+          className={mode === 'signup' ? 'font-semibold text-primary underline underline-offset-4' : 'text-muted-foreground'}
+        >
+          Sign up
+        </button>
+        <span className="text-muted-foreground">·</span>
+        <button
+          onClick={() => setMode('signin')}
+          className={mode === 'signin' ? 'font-semibold text-primary underline underline-offset-4' : 'text-muted-foreground'}
+        >
+          Sign in
+        </button>
+      </div>
+
+      <Card className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-3 text-sm">
+          {mode === 'signup' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="buyer-name">Full name</Label>
+              <Input
+                id="buyer-name"
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="buyer-email">Email</Label>
+            <Input
+              id="buyer-email"
+              type="email"
+              required
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="buyer-password">Password</Label>
+            <Input
+              id="buyer-password"
+              type="password"
+              required
+              minLength={6}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+            />
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <Button type="submit" disabled={submitting} className="w-full">
+            {submitting ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+          </Button>
+        </form>
+      </Card>
+    </div>
   );
 }
 
