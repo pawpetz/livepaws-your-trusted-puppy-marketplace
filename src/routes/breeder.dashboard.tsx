@@ -165,6 +165,8 @@ function BreederDashboardPage() {
     sex: 'Female' as 'Female' | 'Male',
     collar: '',
     price: '1500',
+    saleTerms: 'full' as SaleType,
+    deposit: '250',
     microchip: '',
     pickupAvailable: true,
     shippingAvailable: false,
@@ -195,6 +197,8 @@ function BreederDashboardPage() {
         sex: newPet.sex,
         collar: newPet.collar || 'No ID Tag',
         price: Number(newPet.price),
+        saleTerms: newPet.saleTerms,
+        deposit: newPet.saleTerms === 'deposit' ? Number(newPet.deposit) : 0,
         microchip: newPet.microchip || 'Pending Microchip',
         breederName: businessName,
         pickupAvailable: newPet.pickupAvailable,
@@ -213,6 +217,8 @@ function BreederDashboardPage() {
       sex: 'Female',
       collar: '',
       price: '1500',
+      saleTerms: 'full',
+      deposit: '250',
       microchip: '',
       pickupAvailable: true,
       shippingAvailable: false,
@@ -250,6 +256,8 @@ function BreederDashboardPage() {
         ageWeeks: editingPet.ageWeeks,
         location: editingPet.location,
         price: editingPet.price,
+        deposit: editingPet.deposit,
+        saleTerms: editingPet.saleTerms,
         pickupAvailable: editingPet.pickupAvailable,
         shippingAvailable: editingPet.shippingAvailable,
         shippingFee: editingPet.shippingFee,
@@ -490,6 +498,53 @@ function BreederDashboardPage() {
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label className="block text-muted-foreground">How do you want to sell this pet?</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setNewPet({ ...newPet, saleTerms: 'full' })}
+                        className={
+                          'rounded-xl border p-2.5 text-left transition-colors ' +
+                          (newPet.saleTerms === 'full'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border')
+                        }
+                      >
+                        <p className="font-bold">Full payment</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          Buyer pays the full price now, held in escrow until they confirm receipt.
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewPet({ ...newPet, saleTerms: 'deposit' })}
+                        className={
+                          'rounded-xl border p-2.5 text-left transition-colors ' +
+                          (newPet.saleTerms === 'deposit'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border')
+                        }
+                      >
+                        <p className="font-bold">Reservation</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          Buyer pays a deposit to hold this pet now, balance due before pickup.
+                        </p>
+                      </button>
+                    </div>
+                    {newPet.saleTerms === 'deposit' && (
+                      <div className="space-y-1.5 pt-1">
+                        <Label htmlFor="pet-deposit">Deposit amount ($)</Label>
+                        <Input
+                          id="pet-deposit"
+                          type="number"
+                          value={newPet.deposit}
+                          onChange={(e) => setNewPet({ ...newPet, deposit: e.target.value })}
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   <div className="space-y-2 rounded-xl border border-border bg-secondary/30 p-3">
                     <Label className="mb-1 block text-muted-foreground">Fulfillment options</Label>
                     <label className="flex items-center gap-2">
@@ -559,7 +614,9 @@ function BreederDashboardPage() {
                       <div className="flex items-center gap-2">
                         <div className="text-right">
                           <div className="text-sm font-extrabold">${p.price.toLocaleString()}</div>
-                          <div className="text-[10px] text-muted-foreground">${p.deposit} Escrow Deposit</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {p.saleTerms === 'full' ? 'Full payment' : `Reserve for $${p.deposit}`}
+                          </div>
                         </div>
                         <button
                           onClick={() => setEditingPet(p)}
@@ -613,6 +670,41 @@ function BreederDashboardPage() {
                           onChange={(e) => setEditingPet({ ...editingPet, price: Number(e.target.value) })}
                         />
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="block text-muted-foreground">How is this pet sold?</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingPet({ ...editingPet, saleTerms: 'full' })}
+                          className={
+                            'rounded-xl border p-2 text-left transition-colors ' +
+                            (editingPet.saleTerms === 'full' ? 'border-primary bg-primary/10' : 'border-border')
+                          }
+                        >
+                          <p className="font-bold">Full payment</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingPet({ ...editingPet, saleTerms: 'deposit' })}
+                          className={
+                            'rounded-xl border p-2 text-left transition-colors ' +
+                            (editingPet.saleTerms === 'deposit' ? 'border-primary bg-primary/10' : 'border-border')
+                          }
+                        >
+                          <p className="font-bold">Reservation</p>
+                        </button>
+                      </div>
+                      {editingPet.saleTerms === 'deposit' && (
+                        <div className="space-y-1.5 pt-1">
+                          <Label>Deposit amount ($)</Label>
+                          <Input
+                            type="number"
+                            value={editingPet.deposit}
+                            onChange={(e) => setEditingPet({ ...editingPet, deposit: Number(e.target.value) })}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
