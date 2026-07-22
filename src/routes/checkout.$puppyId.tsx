@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import React, { useState } from 'react';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import React, { useEffect, useState } from 'react';
 import { CheckCircle2, Lock, ShieldCheck, Info } from 'lucide-react';
 import { SiteShell } from '@/components/site-shell';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { buyFullPrice, listPets, reservePet, type Pet } from '@/lib/pets-store';
+import { getSessionBuyer, type BuyerAccount } from '@/lib/buyer-auth';
 
 export const Route = createFileRoute('/checkout/$puppyId')({
   head: () => ({
@@ -26,10 +27,51 @@ export const Route = createFileRoute('/checkout/$puppyId')({
 
 function Checkout() {
   const { pet } = Route.useLoaderData();
-  const [buyerName, setBuyerName] = useState('');
+  const navigate = useNavigate();
+  const [buyer, setBuyer] = useState<BuyerAccount | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('livepaws_buyer_token');
+    if (!token) {
+      setAuthChecked(true);
+      return;
+    }
+    getSessionBuyer({ data: { token } }).then((account) => {
+      setBuyer(account);
+      setAuthChecked(true);
+    });
+  }, []);
+
+  if (!authChecked) {
+    return (
+      <SiteShell>
+        <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm text-muted-foreground sm:px-6">Loading…</div>
+      </SiteShell>
+    );
+  }
+
+  if (!buyer) {
+    return (
+      <SiteShell>
+        <div className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6">
+          <h1 className="text-xl font-bold">Sign in to continue</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You'll need an account so this purchase and any chat messages are tied to a real identity.
+          </p>
+          <Button
+            className="mt-4"
+            onClick={() => navigate({ to: '/account' })}
+          >
+            Sign in or create an account
+          </Button>
+        </div>
+      </SiteShell>
+    );
+  }
 
   if (!pet) {
     return (
@@ -66,14 +108,14 @@ function Checkout() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!buyerName.trim() || submitting) return;
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
     try {
       if (isFullPayment) {
-        await buyFullPrice({ data: { id: pet.id, buyerName } });
+        await buyFullPrice({ data: { id: pet.id, buyerName: buyer.name, buyerEmail: buyer.email } });
       } else {
-        await reservePet({ data: { id: pet.id, buyerName } });
+        await reservePet({ data: { id: pet.id, buyerName: buyer.name, buyerEmail: buyer.email } });
       }
       setDone(true);
     } catch (err) {
@@ -126,18 +168,10 @@ function Checkout() {
               <CardHeader><CardTitle>Your details</CardTitle></CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="name">Full name</Label>
-                  <Input
-                    id="name"
-                    required
-                    placeholder="Jamie Rivera"
-                    value={buyerName}
-                    onChange={(e) => setBuyerName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="jamie@example.com" />
+                  <Label>Buying as</Label>
+                  <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm">
+                    {buyer.name} · {buyer.email}
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="address">Shipping city</Label>
@@ -232,7 +266,7 @@ function Checkout() {
                   <span className="text-sm font-semibold">Due now</span>
                   <span className="text-2xl font-bold text-primary">${amountDueNow.toLocaleString()}</span>
                 </div>
-                <Button type="submit" size="lg" className="w-full" disabled={submitting || !buyerName.trim()}>
+                <Button type="submit" size="lg" className="w-full" disabled={submitting}>
                   <Lock className="mr-1.5 h-4 w-4" />
                   {submitting ? 'Processing…' : isFullPayment ? 'Pay in full — held in escrow' : 'Place deposit in escrow'}
                 </Button>
