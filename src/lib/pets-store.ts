@@ -255,6 +255,35 @@ export const confirmReceipt = createServerFn({ method: 'POST' })
     return rows[0] ? rowToPet(rows[0]) : undefined;
   });
 
+// Manual correction for an escrow entry — buyer name, amount held, sale
+// type, and status. Kept separate from updatePet on purpose: updatePet
+// covers listing details a breeder edits themselves, this covers the
+// transaction record itself, for fixing mistakes (wrong buyer name typo,
+// wrong amount, etc.) rather than the normal sale lifecycle.
+export const updateEscrow = createServerFn({ method: 'POST' })
+  .validator(
+    (input: {
+      id: string;
+      buyerName: string;
+      saleType: SaleType;
+      escrowHeld: number;
+      status: PetStatus;
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    const sql = getSql();
+    const rows = (await sql`
+      UPDATE pets SET
+        buyer_name = ${data.buyerName},
+        sale_type = ${data.saleType},
+        escrow_held = ${data.escrowHeld},
+        status = ${data.status}
+      WHERE id = ${data.id}
+      RETURNING *
+    `) as PetRow[];
+    return rows[0] ? rowToPet(rows[0]) : undefined;
+  });
+
 export const submitReview = createServerFn({ method: 'POST' })
   .validator((input: { id: string; rating: number; comment: string }) => input)
   .handler(async ({ data }) => {
