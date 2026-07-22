@@ -31,7 +31,8 @@ export const Route = createFileRoute("/explore")({
     ],
   }),
   loader: async () => {
-    const [liveBreeders, allPets] = await Promise.all([listLiveBreeders(), listPets()]);
+    const liveBreeders = await listLiveBreeders();
+    const allPets = await listPets();
     return { liveBreeders, allPets };
   },
   component: Explore,
