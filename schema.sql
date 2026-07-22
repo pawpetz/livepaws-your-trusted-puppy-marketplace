@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS pets (
   age_weeks INTEGER NOT NULL DEFAULT 8,
   location TEXT NOT NULL DEFAULT '',
   image TEXT NOT NULL,
+  media JSONB NOT NULL DEFAULT '[]'::jsonb,
   sex TEXT NOT NULL CHECK (sex IN ('Female', 'Male')),
   collar TEXT NOT NULL DEFAULT '',
   price INTEGER NOT NULL,
