@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ShieldCheck,
@@ -54,6 +54,7 @@ import {
   type Pet,
   type Species,
 } from '@/lib/pets-store';
+import { getSessionBreeder, logoutBreeder, type BreederAccount } from '@/lib/auth-store';
 
 export const Route = createFileRoute('/breeder/dashboard')({
   component: BreederDashboardPage,
@@ -76,24 +77,60 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 function BreederDashboardPage() {
+  const navigate = useNavigate();
   const [isLive, setIsLive] = useState(true);
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [breeder, setBreeder] = useState<BreederAccount | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Auth gate: no session token, or a token that no longer resolves to an
+  // approved account, sends the breeder back to apply/sign in. Nothing on
+  // this page loads until this check completes.
+  useEffect(() => {
+    const token = localStorage.getItem('livepaws_breeder_token');
+    if (!token) {
+      navigate({ to: '/breeder/apply' });
+      return;
+    }
+    getSessionBreeder({ data: { token } }).then((account) => {
+      if (!account) {
+        localStorage.removeItem('livepaws_breeder_token');
+        localStorage.removeItem('livepaws_breeder_name');
+        navigate({ to: '/breeder/apply' });
+        return;
+      }
+      setBreeder(account);
+      setAuthChecked(true);
+    });
+  }, [navigate]);
+
+  const businessName = breeder?.businessName ?? DEMO_BREEDER_NAME;
 
   const refresh = async () => {
     const data = await listPets();
-    setPets(data.filter((p) => p.breederName === DEMO_BREEDER_NAME));
+    setPets(data.filter((p) => p.breederName === businessName));
   };
 
   const [documents, setDocuments] = useState<BreederDocument[]>([]);
   const refreshDocuments = async () => {
-    const docs = await listDocuments({ data: { breederName: DEMO_BREEDER_NAME } });
+    const docs = await listDocuments({ data: { breederName: businessName } });
     setDocuments(docs);
   };
 
   useEffect(() => {
+    if (!authChecked) return;
     Promise.all([refresh(), refreshDocuments()]).finally(() => setLoading(false));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked]);
+
+  const handleLogout = async () => {
+    const token = localStorage.getItem('livepaws_breeder_token');
+    if (token) await logoutBreeder({ data: { token } });
+    localStorage.removeItem('livepaws_breeder_token');
+    localStorage.removeItem('livepaws_breeder_name');
+    navigate({ to: '/breeder/apply' });
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
@@ -103,7 +140,7 @@ function BreederDashboardPage() {
     if (!file) return;
     setUploadingDoc(true);
     await addDocument({
-      data: { breederName: DEMO_BREEDER_NAME, title: file.name.replace(/\.[^.]+$/, ''), fileName: file.name },
+      data: { breederName: businessName, title: file.name.replace(/\.[^.]+$/, ''), fileName: file.name },
     });
     await refreshDocuments();
     setUploadingDoc(false);
@@ -156,7 +193,7 @@ function BreederDashboardPage() {
         collar: newPet.collar || 'No ID Tag',
         price: Number(newPet.price),
         microchip: newPet.microchip || 'Pending Microchip',
-        breederName: DEMO_BREEDER_NAME,
+        breederName: businessName,
         pickupAvailable: newPet.pickupAvailable,
         shippingAvailable: newPet.shippingAvailable,
         shippingFee: Number(newPet.shippingFee) || undefined,
@@ -224,7 +261,7 @@ function BreederDashboardPage() {
   const releasedTotal = pets.reduce((sum, p) => sum + (p.status === 'Closed' ? p.escrowHeld ?? 0 : 0), 0);
   const salesPets = pets.filter((p) => p.saleType);
 
-  if (loading) {
+  if (!authChecked || loading) {
     return (
       <SiteShell>
         <div className="mx-auto max-w-7xl px-4 py-10 text-sm text-muted-foreground sm:px-6">Loading your nursery…</div>
@@ -243,7 +280,7 @@ function BreederDashboardPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-extrabold">{DEMO_BREEDER_NAME}</h1>
+                <h1 className="text-2xl font-extrabold">{businessName}</h1>
                 <span className="flex items-center gap-1 rounded-full border border-trust/30 bg-trust/15 px-2.5 py-0.5 text-xs font-semibold text-trust">
                   <ShieldCheck size={13} /> Verified Breeder
                 </span>
@@ -254,17 +291,22 @@ function BreederDashboardPage() {
             </div>
           </div>
 
-          <Button
-            onClick={() => setIsLive(!isLive)}
-            className={
-              isLive
-                ? 'bg-live text-live-foreground hover:bg-live/90'
-                : 'bg-trust text-trust-foreground hover:bg-trust/90'
-            }
-          >
-            <Radio size={16} className={isLive ? 'live-pulse' : ''} />
-            {isLive ? 'Nursery Camera Live' : 'Start Live Camera'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setIsLive(!isLive)}
+              className={
+                isLive
+                  ? 'bg-live text-live-foreground hover:bg-live/90'
+                  : 'bg-trust text-trust-foreground hover:bg-trust/90'
+              }
+            >
+              <Radio size={16} className={isLive ? 'live-pulse' : ''} />
+              {isLive ? 'Nursery Camera Live' : 'Start Live Camera'}
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              Log out
+            </Button>
+          </div>
         </Card>
 
         <Tabs defaultValue="listings">
