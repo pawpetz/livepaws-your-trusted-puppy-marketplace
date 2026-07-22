@@ -32,7 +32,8 @@ export type Pet = {
   collar: string;
   price: number;
   deposit: number;
-  saleType: SaleType | null;
+  saleTerms: SaleType; // how the BREEDER has set this listing up to be sold
+  saleType: SaleType | null; // how it was ACTUALLY bought, once someone buys it
   status: PetStatus;
   microchip: string;
   breederName: string;
@@ -75,6 +76,7 @@ type PetRow = {
   collar: string;
   price: number;
   deposit: number;
+  sale_terms: string;
   sale_type: string | null;
   status: string;
   microchip: string;
@@ -102,6 +104,7 @@ function rowToPet(r: PetRow): Pet {
     collar: r.collar,
     price: r.price,
     deposit: r.deposit,
+    saleTerms: (r.sale_terms as SaleType) ?? 'deposit',
     saleType: (r.sale_type as SaleType | null) ?? null,
     status: r.status as PetStatus,
     microchip: r.microchip,
@@ -130,6 +133,8 @@ export const addPet = createServerFn({ method: 'POST' })
       sex: 'Female' | 'Male';
       collar: string;
       price: number;
+      deposit: number;
+      saleTerms: SaleType;
       microchip: string;
       breederName: string;
       breed: string;
@@ -148,8 +153,8 @@ export const addPet = createServerFn({ method: 'POST' })
     const image = data.image ?? defaultImage(data.species);
     const shippingFee = data.shippingAvailable ? data.shippingFee ?? null : null;
     const rows = (await sql`
-      INSERT INTO pets (id, species, name, breed, bio, age_weeks, location, image, sex, collar, price, deposit, sale_type, status, microchip, breeder_name, pickup_available, shipping_available, shipping_fee)
-      VALUES (${id}, ${data.species}, ${data.name}, ${data.breed || 'Mixed breed'}, ${data.bio}, ${data.ageWeeks}, ${data.location}, ${image}, ${data.sex}, ${data.collar}, ${data.price}, 250, NULL, 'Available', ${data.microchip}, ${data.breederName}, ${data.pickupAvailable}, ${data.shippingAvailable}, ${shippingFee})
+      INSERT INTO pets (id, species, name, breed, bio, age_weeks, location, image, sex, collar, price, deposit, sale_terms, sale_type, status, microchip, breeder_name, pickup_available, shipping_available, shipping_fee)
+      VALUES (${id}, ${data.species}, ${data.name}, ${data.breed || 'Mixed breed'}, ${data.bio}, ${data.ageWeeks}, ${data.location}, ${image}, ${data.sex}, ${data.collar}, ${data.price}, ${data.deposit}, ${data.saleTerms}, NULL, 'Available', ${data.microchip}, ${data.breederName}, ${data.pickupAvailable}, ${data.shippingAvailable}, ${shippingFee})
       RETURNING *
     `) as PetRow[];
     return rowToPet(rows[0]);
@@ -178,6 +183,8 @@ export const updatePet = createServerFn({ method: 'POST' })
       ageWeeks: number;
       location: string;
       price: number;
+      deposit: number;
+      saleTerms: SaleType;
       pickupAvailable: boolean;
       shippingAvailable: boolean;
       shippingFee?: number;
@@ -194,6 +201,8 @@ export const updatePet = createServerFn({ method: 'POST' })
         age_weeks = ${data.ageWeeks},
         location = ${data.location},
         price = ${data.price},
+        deposit = ${data.deposit},
+        sale_terms = ${data.saleTerms},
         pickup_available = ${data.pickupAvailable},
         shipping_available = ${data.shippingAvailable},
         shipping_fee = ${shippingFee}
