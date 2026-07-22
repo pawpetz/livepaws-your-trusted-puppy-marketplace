@@ -149,6 +149,15 @@ export const listLiveBreeders = createServerFn({ method: 'GET' }).handler(async 
   return rows.map((r) => ({ ...publicAccount(r), slug: slugify(r.business_name) }));
 });
 
+// Public directory of verified breeders — no password needed, this is
+// the same kind of info a "verified sellers" listing on any marketplace
+// would show publicly.
+export const listApprovedBreeders = createServerFn({ method: 'GET' }).handler(async () => {
+  const sql = getSql();
+  const rows = (await sql`SELECT * FROM breeders WHERE status = 'approved'`) as BreederRow[];
+  return rows.map((r) => ({ ...publicAccount(r), slug: slugify(r.business_name) }));
+});
+
 // --- Admin (verification queue) ---
 //
 // Protected by a single shared password stored in the ADMIN_PASSWORD
