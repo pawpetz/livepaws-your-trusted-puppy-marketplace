@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { buyFullPrice, listPets, reservePet, type Pet } from '@/lib/pets-store';
 import { getSessionBuyer, type BuyerAccount } from '@/lib/buyer-auth';
 
@@ -33,6 +34,9 @@ function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shippingCity, setShippingCity] = useState('');
+  const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
+  const [billingAddress, setBillingAddress] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('livepaws_buyer_token');
@@ -167,15 +171,22 @@ function Checkout() {
             <Card>
               <CardHeader><CardTitle>Your details</CardTitle></CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label>Buying as</Label>
-                  <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm">
-                    {buyer.name} · {buyer.email}
-                  </div>
+                <div className="space-y-1.5">
+                  <Label>Full name</Label>
+                  <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm">{buyer.name}</div>
                 </div>
                 <div className="space-y-1.5">
+                  <Label>Email</Label>
+                  <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm">{buyer.email}</div>
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="address">Shipping city</Label>
-                  <Input id="address" placeholder="Portland, OR" />
+                  <Input
+                    id="address"
+                    placeholder="Portland, OR"
+                    value={shippingCity}
+                    onChange={(e) => setShippingCity(e.target.value)}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -189,6 +200,10 @@ function Checkout() {
               <CardContent className="space-y-3">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="cardholder">Cardholder name</Label>
+                    <Input id="cardholder" placeholder="Name on card" defaultValue={buyer.name} />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
                     <Label htmlFor="card">Card number</Label>
                     <Input id="card" placeholder="1234 1234 1234 1234" />
                   </div>
@@ -201,6 +216,24 @@ function Checkout() {
                     <Input id="cvc" placeholder="123" />
                   </div>
                 </div>
+
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox checked={billingSameAsShipping} onCheckedChange={(v) => setBillingSameAsShipping(!!v)} />
+                  Billing address same as shipping
+                </label>
+
+                {!billingSameAsShipping && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="billing-address">Billing address</Label>
+                    <Input
+                      id="billing-address"
+                      placeholder="123 Main St, City, State, ZIP"
+                      value={billingAddress}
+                      onChange={(e) => setBillingAddress(e.target.value)}
+                    />
+                  </div>
+                )}
+
                 <div className="flex items-start gap-2 rounded-lg border border-warm/40 bg-warm/10 p-2.5 text-xs text-warm-foreground">
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
