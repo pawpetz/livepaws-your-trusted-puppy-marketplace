@@ -1,18 +1,14 @@
+import { neon } from '@neondatabase/serverless';
 import { createServerFn } from '@tanstack/react-start';
-import { DEMO_BREEDER_NAME } from './pets-store';
 
 /* ------------------------------------------------------------
-   Breeder accounts + verification.
+   Breeder accounts + verification — now backed by the same
+   Postgres database as pets-store.ts.
 
    NOTE ON SECURITY: passwords are stored in plain text here for
    demo purposes only. Before this touches real user data, swap
    this for real password hashing (e.g. bcrypt/argon2) — do not
    ship this file's password handling as-is.
-
-   NOTE ON PERSISTENCE: same as pets-store.ts, this is server
-   in-memory state. Fine for building/demoing the flow end to
-   end, resets on redeploy, and is the same seam to swap for a
-   real database + real sessions (e.g. signed cookies) later.
 ------------------------------------------------------------ */
 
 export type BreederStatus = 'pending' | 'approved' | 'rejected';
@@ -21,72 +17,86 @@ export type BreederAccount = {
   id: string;
   businessName: string;
   email: string;
-  password: string;
   usdaLicense: string;
   status: BreederStatus;
   appliedAt: string;
 };
 
-let breeders: BreederAccount[] = [
-  {
-    id: 'demo-breeder',
-    businessName: DEMO_BREEDER_NAME,
-    email: 'demo@livepaws.example',
-    password: 'demo1234',
-    usdaLicense: '22-B-0087',
-    status: 'approved',
-    appliedAt: '2026-01-10',
-  },
-];
+function getSql() {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      'DATABASE_URL is not set. Connect a Neon/Postgres database to this project in Vercel (Storage tab) and redeploy.',
+    );
+  }
+  return neon(url);
+}
 
-// token -> breeder id
-const sessions = new Map<string, string>();
+type BreederRow = {
+  id: string;
+  business_name: string;
+  email: string;
+  password: string;
+  usda_license: string;
+  status: string;
+  applied_at: string;
+};
 
-function publicAccount(b: BreederAccount) {
-  const { password, ...rest } = b;
-  return rest;
+function publicAccount(r: BreederRow): BreederAccount {
+  return {
+    id: r.id,
+    businessName: r.business_name,
+    email: r.email,
+    usdaLicense: r.usda_license,
+    status: r.status as BreederStatus,
+    appliedAt: r.applied_at,
+  };
 }
 
 export const applyAsBreeder = createServerFn({ method: 'POST' })
   .validator((input: { businessName: string; email: string; password: string; usdaLicense: string }) => input)
   .handler(async ({ data }) => {
-    if (breeders.some((b) => b.email.toLowerCase() === data.email.toLowerCase())) {
+    const sql = getSql();
+    const existing = (await sql`SELECT id FROM breeders WHERE lower(email) = lower(${data.email})`) as { id: string }[];
+    if (existing.length > 0) {
       return { ok: false as const, error: 'An account with this email already exists.' };
     }
-    const account: BreederAccount = {
-      id: crypto.randomUUID(),
-      businessName: data.businessName,
-      email: data.email,
-      password: data.password,
-      usdaLicense: data.usdaLicense,
-      status: 'pending',
-      appliedAt: new Date().toISOString().slice(0, 10),
-    };
-    breeders = [...breeders, account];
-    return { ok: true as const, id: account.id };
+    const id = crypto.randomUUID();
+    const appliedAt = new Date().toISOString().slice(0, 10);
+    await sql`
+      INSERT INTO breeders (id, business_name, email, password, usda_license, status, applied_at)
+      VALUES (${id}, ${data.businessName}, ${data.email}, ${data.password}, ${data.usdaLicense}, 'pending', ${appliedAt})
+    `;
+    return { ok: true as const, id };
   });
 
 export const loginBreeder = createServerFn({ method: 'POST' })
   .validator((input: { email: string; password: string }) => input)
   .handler(async ({ data }) => {
-    const account = breeders.find((b) => b.email.toLowerCase() === data.email.toLowerCase());
+    const sql = getSql();
+    const rows = (await sql`SELECT * FROM breeders WHERE lower(email) = lower(${data.email})`) as BreederRow[];
+    const account = rows[0];
     if (!account || account.password !== data.password) {
       return { ok: false as const, error: 'invalid' as const };
     }
     if (account.status !== 'approved') {
-      return { ok: false as const, error: account.status };
+      return { ok: false as const, error: account.status as BreederStatus };
     }
     const token = crypto.randomUUID();
-    sessions.set(token, account.id);
+    await sql`INSERT INTO sessions (token, breeder_id) VALUES (${token}, ${account.id})`;
     return { ok: true as const, token, breeder: publicAccount(account) };
   });
 
 export const getSessionBreeder = createServerFn({ method: 'GET' })
   .validator((input: { token: string }) => input)
   .handler(async ({ data }) => {
-    const id = sessions.get(data.token);
-    if (!id) return null;
-    const account = breeders.find((b) => b.id === id);
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT b.* FROM sessions s
+      JOIN breeders b ON b.id = s.breeder_id
+      WHERE s.token = ${data.token}
+    `) as BreederRow[];
+    const account = rows[0];
     if (!account || account.status !== 'approved') return null;
     return publicAccount(account);
   });
@@ -94,26 +104,31 @@ export const getSessionBreeder = createServerFn({ method: 'GET' })
 export const logoutBreeder = createServerFn({ method: 'POST' })
   .validator((input: { token: string }) => input)
   .handler(async ({ data }) => {
-    sessions.delete(data.token);
+    const sql = getSql();
+    await sql`DELETE FROM sessions WHERE token = ${data.token}`;
     return { ok: true };
   });
 
 // --- Admin (verification queue) ---
 
-export const listBreeders = createServerFn({ method: 'GET' }).handler(async () =>
-  breeders.map(publicAccount),
-);
+export const listBreeders = createServerFn({ method: 'GET' }).handler(async () => {
+  const sql = getSql();
+  const rows = (await sql`SELECT * FROM breeders ORDER BY applied_at DESC`) as BreederRow[];
+  return rows.map(publicAccount);
+});
 
 export const approveBreeder = createServerFn({ method: 'POST' })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    breeders = breeders.map((b) => (b.id === data.id ? { ...b, status: 'approved' } : b));
+    const sql = getSql();
+    await sql`UPDATE breeders SET status = 'approved' WHERE id = ${data.id}`;
     return { ok: true };
   });
 
 export const rejectBreeder = createServerFn({ method: 'POST' })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    breeders = breeders.map((b) => (b.id === data.id ? { ...b, status: 'rejected' } : b));
+    const sql = getSql();
+    await sql`UPDATE breeders SET status = 'rejected' WHERE id = ${data.id}`;
     return { ok: true };
   });
