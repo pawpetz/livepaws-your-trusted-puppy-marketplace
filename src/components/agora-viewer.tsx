@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Users } from 'lucide-react';
 import { getAgoraToken } from '@/lib/agora';
 
 /* ------------------------------------------------------------
@@ -12,11 +11,22 @@ import { getAgoraToken } from '@/lib/agora';
    NOT YET TESTABLE without real Agora credentials — see agora.ts.
 ------------------------------------------------------------ */
 
-export function AgoraViewer({ channelName }: { channelName: string }) {
+export function AgoraViewer({
+  channelName,
+  onViewerCount,
+}: {
+  channelName: string;
+  onViewerCount?: (count: number) => void;
+}) {
   const videoRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'connecting' | 'live' | 'offline' | 'error'>('connecting');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
+
+  useEffect(() => {
+    onViewerCount?.(viewerCount);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerCount]);
 
   useEffect(() => {
     let client: any;
@@ -74,11 +84,6 @@ export function AgoraViewer({ channelName }: { channelName: string }) {
           {status === 'connecting' && <p className="text-sm">Connecting to stream…</p>}
           {status === 'offline' && <p className="text-sm">Waiting for the breeder to start the camera…</p>}
           {status === 'error' && <p className="max-w-xs text-center text-sm text-destructive">{errorMsg}</p>}
-        </div>
-      )}
-      {status === 'live' && (
-        <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-xs font-medium text-white">
-          <Users size={12} /> {viewerCount + 1}
         </div>
       )}
     </div>
