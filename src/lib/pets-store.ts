@@ -19,6 +19,8 @@ export type SaleType = 'full' | 'deposit';
 // Closed    -> buyer confirmed receipt, escrow released to breeder
 export type PetStatus = 'Available' | 'Reserved' | 'Sold' | 'Closed';
 
+export type MediaItem = { url: string; type: 'image' | 'video' };
+
 export type Pet = {
   id: string;
   species: Species;
@@ -28,6 +30,7 @@ export type Pet = {
   ageWeeks: number;
   location: string;
   image: string;
+  media: MediaItem[];
   sex: 'Female' | 'Male';
   collar: string;
   price: number;
@@ -73,6 +76,7 @@ type PetRow = {
   age_weeks: number;
   location: string;
   image: string;
+  media: unknown;
   sex: string;
   collar: string;
   price: number;
@@ -102,6 +106,7 @@ function rowToPet(r: PetRow): Pet {
     ageWeeks: r.age_weeks,
     location: r.location,
     image: r.image,
+    media: Array.isArray(r.media) ? (r.media as MediaItem[]) : [],
     sex: r.sex as 'Female' | 'Male',
     collar: r.collar,
     price: r.price,
@@ -148,16 +153,18 @@ export const addPet = createServerFn({ method: 'POST' })
       shippingAvailable: boolean;
       shippingFee?: number;
       image?: string;
+      media?: MediaItem[];
     }) => input,
   )
   .handler(async ({ data }) => {
     const sql = getSql();
     const id = crypto.randomUUID();
     const image = data.image ?? defaultImage(data.species);
+    const media = JSON.stringify(data.media ?? []);
     const shippingFee = data.shippingAvailable ? data.shippingFee ?? null : null;
     const rows = (await sql`
-      INSERT INTO pets (id, species, name, breed, bio, age_weeks, location, image, sex, collar, price, deposit, sale_terms, sale_type, status, microchip, breeder_name, pickup_available, shipping_available, shipping_fee)
-      VALUES (${id}, ${data.species}, ${data.name}, ${data.breed || 'Mixed breed'}, ${data.bio}, ${data.ageWeeks}, ${data.location}, ${image}, ${data.sex}, ${data.collar}, ${data.price}, ${data.deposit}, ${data.saleTerms}, NULL, 'Available', ${data.microchip}, ${data.breederName}, ${data.pickupAvailable}, ${data.shippingAvailable}, ${shippingFee})
+      INSERT INTO pets (id, species, name, breed, bio, age_weeks, location, image, media, sex, collar, price, deposit, sale_terms, sale_type, status, microchip, breeder_name, pickup_available, shipping_available, shipping_fee)
+      VALUES (${id}, ${data.species}, ${data.name}, ${data.breed || 'Mixed breed'}, ${data.bio}, ${data.ageWeeks}, ${data.location}, ${image}, ${media}, ${data.sex}, ${data.collar}, ${data.price}, ${data.deposit}, ${data.saleTerms}, NULL, 'Available', ${data.microchip}, ${data.breederName}, ${data.pickupAvailable}, ${data.shippingAvailable}, ${shippingFee})
       RETURNING *
     `) as PetRow[];
     return rowToPet(rows[0]);
@@ -209,6 +216,21 @@ export const updatePet = createServerFn({ method: 'POST' })
         pickup_available = ${data.pickupAvailable},
         shipping_available = ${data.shippingAvailable},
         shipping_fee = ${shippingFee}
+      WHERE id = ${data.id}
+      RETURNING *
+    `) as PetRow[];
+    return rows[0] ? rowToPet(rows[0]) : undefined;
+  });
+
+// Lets a breeder add/remove photos and videos from a listing's gallery
+// after it's already been created.
+export const updatePetMedia = createServerFn({ method: 'POST' })
+  .validator((input: { id: string; media: MediaItem[] }) => input)
+  .handler(async ({ data }) => {
+    const sql = getSql();
+    const media = JSON.stringify(data.media);
+    const rows = (await sql`
+      UPDATE pets SET media = ${media}
       WHERE id = ${data.id}
       RETURNING *
     `) as PetRow[];
