@@ -17,7 +17,15 @@ import { getAgoraToken } from '@/lib/agora';
    instead of pretending to work.
 ------------------------------------------------------------ */
 
-export function AgoraBroadcast({ channelName }: { channelName: string }) {
+export function AgoraBroadcast({
+  channelName,
+  onLive,
+  onOffline,
+}: {
+  channelName: string;
+  onLive?: () => void;
+  onOffline?: () => void;
+}) {
   const [isLive, setIsLive] = useState(false);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
@@ -52,6 +60,7 @@ export function AgoraBroadcast({ channelName }: { channelName: string }) {
       clientRef.current = client;
       localTracksRef.current = [micTrack, camTrack];
       setIsLive(true);
+      onLive?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start the stream.');
     } finally {
@@ -70,6 +79,7 @@ export function AgoraBroadcast({ channelName }: { channelName: string }) {
       clientRef.current = null;
     }
     setIsLive(false);
+    onOffline?.();
   };
 
   useEffect(() => {
@@ -80,7 +90,9 @@ export function AgoraBroadcast({ channelName }: { channelName: string }) {
         track.close();
       });
       clientRef.current?.leave();
+      if (isLive) onOffline?.();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleMic = () => {
