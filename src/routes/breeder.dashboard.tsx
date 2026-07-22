@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ShieldCheck,
   DollarSign,
@@ -20,6 +20,9 @@ import {
   Truck,
   Home as HomeIcon,
   CalendarDays,
+  Pencil,
+  ImagePlus,
+  Hourglass,
 } from 'lucide-react';
 import { SiteShell } from '@/components/site-shell';
 import { Button } from '@/components/ui/button';
@@ -30,13 +33,31 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { addPet, confirmReceipt, listPets, removePet, type Pet, type Species } from '@/lib/pets-store';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  addDocument,
+  addPet,
+  confirmReceipt,
+  DEMO_BREEDER_NAME,
+  listDocuments,
+  listPets,
+  removeDocument,
+  removePet,
+  updatePet,
+  type BreederDocument,
+  type Pet,
+  type Species,
+} from '@/lib/pets-store';
 
 export const Route = createFileRoute('/breeder/dashboard')({
   component: BreederDashboardPage,
 });
-
-const BREEDER_NAME = 'Oakwood Paws & Cattery Studio';
 
 const statusStyle: Record<Pet['status'], string> = {
   Available: 'bg-trust/15 text-trust border-trust/30',
@@ -45,6 +66,15 @@ const statusStyle: Record<Pet['status'], string> = {
   Closed: 'bg-secondary text-muted-foreground border-border',
 };
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function BreederDashboardPage() {
   const [isLive, setIsLive] = useState(true);
   const [pets, setPets] = useState<Pet[]>([]);
@@ -52,17 +82,38 @@ function BreederDashboardPage() {
 
   const refresh = async () => {
     const data = await listPets();
-    setPets(data.filter((p) => p.breederName === BREEDER_NAME));
+    setPets(data.filter((p) => p.breederName === DEMO_BREEDER_NAME));
+  };
+
+  const [documents, setDocuments] = useState<BreederDocument[]>([]);
+  const refreshDocuments = async () => {
+    const docs = await listDocuments({ data: { breederName: DEMO_BREEDER_NAME } });
+    setDocuments(docs);
   };
 
   useEffect(() => {
-    refresh().finally(() => setLoading(false));
+    Promise.all([refresh(), refreshDocuments()]).finally(() => setLoading(false));
   }, []);
 
-  const [documents] = useState([
-    { id: '1', title: 'State Breeder License / Registration', type: 'PDF Document', status: 'Verified', date: '2026-01-15' },
-    { id: '2', title: 'Vet Inspection & Health Certificates', type: 'PDF Document', status: 'Verified', date: '2026-06-20' },
-  ]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingDoc(true);
+    await addDocument({
+      data: { breederName: DEMO_BREEDER_NAME, title: file.name.replace(/\.[^.]+$/, ''), fileName: file.name },
+    });
+    await refreshDocuments();
+    setUploadingDoc(false);
+    e.target.value = '';
+  };
+
+  const handleRemoveDoc = async (id: string) => {
+    await removeDocument({ data: { id } });
+    await refreshDocuments();
+  };
 
   const [newPet, setNewPet] = useState({
     species: 'Dog' as Species,
@@ -78,8 +129,16 @@ function BreederDashboardPage() {
     pickupAvailable: true,
     shippingAvailable: false,
     shippingFee: '250',
+    imageDataUrl: '' as string,
   });
   const [submitting, setSubmitting] = useState(false);
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const dataUrl = await readFileAsDataUrl(file);
+    setNewPet((prev) => ({ ...prev, imageDataUrl: dataUrl }));
+  };
 
   const handleAddPet = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,10 +156,11 @@ function BreederDashboardPage() {
         collar: newPet.collar || 'No ID Tag',
         price: Number(newPet.price),
         microchip: newPet.microchip || 'Pending Microchip',
-        breederName: BREEDER_NAME,
+        breederName: DEMO_BREEDER_NAME,
         pickupAvailable: newPet.pickupAvailable,
         shippingAvailable: newPet.shippingAvailable,
         shippingFee: Number(newPet.shippingFee) || undefined,
+        image: newPet.imageDataUrl || undefined,
       },
     });
     setNewPet({
@@ -117,6 +177,7 @@ function BreederDashboardPage() {
       pickupAvailable: true,
       shippingAvailable: false,
       shippingFee: '250',
+      imageDataUrl: '',
     });
     await refresh();
     setSubmitting(false);
@@ -132,6 +193,31 @@ function BreederDashboardPage() {
   const closeSale = async (id: string) => {
     await confirmReceipt({ data: { id } });
     await refresh();
+  };
+
+  const [editingPet, setEditingPet] = useState<Pet | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const handleSaveEdit = async () => {
+    if (!editingPet) return;
+    setSavingEdit(true);
+    await updatePet({
+      data: {
+        id: editingPet.id,
+        name: editingPet.name,
+        breed: editingPet.breed,
+        bio: editingPet.bio,
+        ageWeeks: editingPet.ageWeeks,
+        location: editingPet.location,
+        price: editingPet.price,
+        pickupAvailable: editingPet.pickupAvailable,
+        shippingAvailable: editingPet.shippingAvailable,
+        shippingFee: editingPet.shippingFee,
+      },
+    });
+    await refresh();
+    setSavingEdit(false);
+    setEditingPet(null);
   };
 
   const heldTotal = pets.reduce((sum, p) => sum + (p.status !== 'Closed' ? p.escrowHeld ?? 0 : 0), 0);
@@ -157,7 +243,7 @@ function BreederDashboardPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-extrabold">{BREEDER_NAME}</h1>
+                <h1 className="text-2xl font-extrabold">{DEMO_BREEDER_NAME}</h1>
                 <span className="flex items-center gap-1 rounded-full border border-trust/30 bg-trust/15 px-2.5 py-0.5 text-xs font-semibold text-trust">
                   <ShieldCheck size={13} /> Verified Breeder
                 </span>
@@ -227,6 +313,23 @@ function BreederDashboardPage() {
                       value={newPet.name}
                       onChange={(e) => setNewPet({ ...newPet, name: e.target.value })}
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>Photo</Label>
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/30 p-3 transition-colors hover:border-primary">
+                      {newPet.imageDataUrl ? (
+                        <img src={newPet.imageDataUrl} alt="Preview" className="h-12 w-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+                          <ImagePlus size={18} />
+                        </div>
+                      )}
+                      <span className="text-muted-foreground">
+                        {newPet.imageDataUrl ? 'Change photo' : 'Upload a photo'}
+                      </span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+                    </label>
                   </div>
 
                   <div className="space-y-1.5">
@@ -388,11 +491,18 @@ function BreederDashboardPage() {
                         {p.bio && <p className="max-w-md pl-8 text-xs text-muted-foreground/80">{p.bio}</p>}
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
                         <div className="text-right">
                           <div className="text-sm font-extrabold">${p.price.toLocaleString()}</div>
                           <div className="text-[10px] text-muted-foreground">${p.deposit} Escrow Deposit</div>
                         </div>
+                        <button
+                          onClick={() => setEditingPet(p)}
+                          className="rounded-xl bg-secondary p-2 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                          aria-label="Edit listing"
+                        >
+                          <Pencil size={16} />
+                        </button>
                         <button
                           onClick={() => handleRemove(p.id)}
                           className="rounded-xl bg-secondary p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
@@ -406,6 +516,102 @@ function BreederDashboardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Edit listing dialog */}
+            <Dialog open={!!editingPet} onOpenChange={(open) => !open && setEditingPet(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit listing</DialogTitle>
+                </DialogHeader>
+                {editingPet && (
+                  <div className="space-y-3 text-xs">
+                    <div className="space-y-1.5">
+                      <Label>Name or tag</Label>
+                      <Input
+                        value={editingPet.name}
+                        onChange={(e) => setEditingPet({ ...editingPet, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Breed</Label>
+                        <Input
+                          value={editingPet.breed}
+                          onChange={(e) => setEditingPet({ ...editingPet, breed: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Price ($)</Label>
+                        <Input
+                          type="number"
+                          value={editingPet.price}
+                          onChange={(e) => setEditingPet({ ...editingPet, price: Number(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Age (weeks)</Label>
+                        <Input
+                          type="number"
+                          value={editingPet.ageWeeks}
+                          onChange={(e) => setEditingPet({ ...editingPet, ageWeeks: Number(e.target.value) })}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Location</Label>
+                        <Input
+                          value={editingPet.location}
+                          onChange={(e) => setEditingPet({ ...editingPet, location: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Bio</Label>
+                      <Textarea
+                        value={editingPet.bio}
+                        onChange={(e) => setEditingPet({ ...editingPet, bio: e.target.value })}
+                        className="min-h-16"
+                      />
+                    </div>
+                    <div className="space-y-2 rounded-xl border border-border bg-secondary/30 p-3">
+                      <label className="flex items-center gap-2">
+                        <Checkbox
+                          checked={editingPet.pickupAvailable}
+                          onCheckedChange={(v) => setEditingPet({ ...editingPet, pickupAvailable: !!v })}
+                        />
+                        Local pickup available
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <Checkbox
+                          checked={editingPet.shippingAvailable}
+                          onCheckedChange={(v) => setEditingPet({ ...editingPet, shippingAvailable: !!v })}
+                        />
+                        Nationwide shipping available
+                      </label>
+                      {editingPet.shippingAvailable && (
+                        <div className="space-y-1.5 pl-6">
+                          <Label>Shipping fee ($)</Label>
+                          <Input
+                            type="number"
+                            value={editingPet.shippingFee ?? 0}
+                            onChange={(e) => setEditingPet({ ...editingPet, shippingFee: Number(e.target.value) })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditingPet(null)}>
+                    Cancel
+                  </Button>
+                  <Button disabled={savingEdit} onClick={handleSaveEdit}>
+                    Save changes
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* TAB 2: VET & HEALTH VAULT */}
@@ -416,35 +622,63 @@ function BreederDashboardPage() {
                   <Upload className="text-primary" size={20} /> Upload Health Record
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Upload state breeder licenses, vet vaccination reports, or health guarantees.
+                  Upload state breeder licenses, vet vaccination reports, or health guarantees. New uploads
+                  are reviewed before they're marked Verified.
                 </p>
-                <div className="cursor-pointer rounded-2xl border-2 border-dashed border-border bg-secondary/40 p-6 text-center transition-colors hover:border-primary">
+                <label className="block cursor-pointer rounded-2xl border-2 border-dashed border-border bg-secondary/40 p-6 text-center transition-colors hover:border-primary">
                   <Upload size={28} className="mx-auto mb-2 text-primary" />
-                  <p className="text-xs font-semibold">Upload PDF or Image</p>
+                  <p className="text-xs font-semibold">{uploadingDoc ? 'Uploading…' : 'Upload PDF or Image'}</p>
                   <p className="mt-1 text-[10px] text-muted-foreground">Up to 10MB</p>
-                </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf,image/*"
+                    className="hidden"
+                    disabled={uploadingDoc}
+                    onChange={handleDocUpload}
+                  />
+                </label>
               </Card>
 
               <div className="space-y-4 lg:col-span-2">
-                <h2 className="text-lg font-bold">Verified Records ({documents.length})</h2>
-                <div className="space-y-3">
-                  {documents.map((doc) => (
-                    <Card key={doc.id} className="flex items-center justify-between p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <FileText size={20} />
+                <h2 className="text-lg font-bold">Your Documents ({documents.length})</h2>
+                {documents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {documents.map((doc) => (
+                      <Card key={doc.id} className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <FileText size={20} />
+                          </div>
+                          <div>
+                            <span className="block text-xs font-bold">{doc.title}</span>
+                            <span className="text-[10px] text-muted-foreground">{doc.fileName} • Uploaded {doc.uploadedAt}</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="block text-xs font-bold">{doc.title}</span>
-                          <span className="text-[10px] text-muted-foreground">{doc.type} • Uploaded {doc.date}</span>
+                        <div className="flex items-center gap-2">
+                          {doc.status === 'Verified' ? (
+                            <span className="flex items-center gap-1 rounded-full border border-trust/30 bg-trust/15 px-2.5 py-1 text-[10px] font-bold text-trust">
+                              <CheckCircle2 size={12} /> Verified
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 rounded-full border border-warm/40 bg-warm/15 px-2.5 py-1 text-[10px] font-bold text-warm-foreground">
+                              <Hourglass size={12} /> Pending Review
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleRemoveDoc(doc.id)}
+                            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            aria-label="Remove document"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
-                      </div>
-                      <span className="flex items-center gap-1 rounded-full border border-trust/30 bg-trust/15 px-2.5 py-1 text-[10px] font-bold text-trust">
-                        <CheckCircle2 size={12} /> {doc.status}
-                      </span>
-                    </Card>
-                  ))}
-                </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </TabsContent>
