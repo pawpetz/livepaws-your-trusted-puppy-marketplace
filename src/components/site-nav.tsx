@@ -9,7 +9,6 @@ import {
   Briefcase, 
   User, 
   LayoutDashboard, 
-  ShieldAlert,
   ChevronDown,
   Search,
   Menu,
@@ -135,14 +134,6 @@ export const TopNav: React.FC = () => {
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors flex items-center gap-1.5"
             >
               <User size={16} /> My Pets
-            </a>
-
-            <a 
-              href="/admin" 
-              className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center gap-1 transition-colors"
-              title="Super Admin Portal"
-            >
-              <ShieldAlert size={14} className="text-amber-600" /> Admin
             </a>
 
             <a 
