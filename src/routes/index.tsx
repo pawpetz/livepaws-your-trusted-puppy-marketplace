@@ -23,11 +23,9 @@ export const Route = createFileRoute("/")({
     ],
   }),
   loader: async () => {
-    const [liveBreeders, approvedBreeders, allPets] = await Promise.all([
-      listLiveBreeders(),
-      listApprovedBreeders(),
-      listPets(),
-    ]);
+    const liveBreeders = await listLiveBreeders();
+    const approvedBreeders = await listApprovedBreeders();
+    const allPets = await listPets();
     return { liveBreeders, approvedBreeders, allPets };
   },
   component: Landing,
