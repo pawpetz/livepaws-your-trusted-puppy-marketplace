@@ -20,6 +20,9 @@ import { CAT_BREEDS, DOG_BREEDS, streams, type Species } from "@/lib/mock-data";
 type CategoryFilter = "all" | Species;
 
 export const Route = createFileRoute("/explore")({
+  validateSearch: (search: Record<string, unknown>): { species?: Species } => ({
+    species: search.species === "dog" || search.species === "cat" ? search.species : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Explore live streams — LivePaws" },
@@ -38,7 +41,8 @@ const CATEGORIES: { id: CategoryFilter; label: string; emoji: string }[] = [
 ];
 
 function Explore() {
-  const [category, setCategory] = useState<CategoryFilter>("all");
+  const { species } = Route.useSearch();
+  const [category, setCategory] = useState<CategoryFilter>(species ?? "all");
   const [breed, setBreed] = useState<string>("all");
 
   // Reset breed when category changes to avoid mismatched selections
