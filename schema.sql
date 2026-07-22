@@ -89,3 +89,18 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   flagged BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS buyers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL -- TODO: hash before real users touch this
+);
+
+CREATE TABLE IF NOT EXISTS buyer_sessions (
+  token TEXT PRIMARY KEY,
+  buyer_id TEXT NOT NULL REFERENCES buyers(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS buyer_email TEXT;
