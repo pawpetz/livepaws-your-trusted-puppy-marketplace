@@ -1,9 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Calendar, PawPrint, Search, Users } from "lucide-react";
+import { PawPrint, Search, ShieldCheck, CalendarClock } from "lucide-react";
 import { SiteShell, LiveBadge, VerifiedBadge } from "@/components/site-shell";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -15,7 +14,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { CAT_BREEDS, DOG_BREEDS, streams, type Species } from "@/lib/mock-data";
+import { CAT_BREEDS, DOG_BREEDS, type Species } from "@/lib/mock-data";
+import { listLiveBreeders } from "@/lib/auth-store";
+import { listPets, type Pet } from "@/lib/pets-store";
 
 type CategoryFilter = "all" | Species;
 
@@ -26,11 +27,13 @@ export const Route = createFileRoute("/explore")({
   head: () => ({
     meta: [
       { title: "Explore live streams — LivePaws" },
-      { name: "description", content: "Browse live puppy and kitten streams and upcoming Pet Showcase schedules from verified breeders and catteries." },
-      { property: "og:title", content: "Explore live streams — LivePaws" },
-      { property: "og:description", content: "Browse live puppy and kitten streams and upcoming Pet Showcase schedules." },
+      { name: "description", content: "Browse live puppy and kitten streams from verified breeders and catteries." },
     ],
   }),
+  loader: async () => {
+    const [liveBreeders, allPets] = await Promise.all([listLiveBreeders(), listPets()]);
+    return { liveBreeders, allPets };
+  },
   component: Explore,
 });
 
@@ -40,36 +43,54 @@ const CATEGORIES: { id: CategoryFilter; label: string; emoji: string }[] = [
   { id: "cat", label: "Cats", emoji: "🐱" },
 ];
 
+function speciesOf(pet: Pet): Species {
+  return pet.species === "Cat" ? "cat" : "dog";
+}
+
 function Explore() {
   const { species } = Route.useSearch();
+  const { liveBreeders, allPets } = Route.useLoaderData();
   const [category, setCategory] = useState<CategoryFilter>(species ?? "all");
   const [breed, setBreed] = useState<string>("all");
+  const [search, setSearch] = useState("");
 
-  // Reset breed when category changes to avoid mismatched selections
   const onCategory = (id: CategoryFilter) => {
     setCategory(id);
     setBreed("all");
   };
 
-  const filtered = useMemo(() => {
-    return streams.filter((s) => {
-      if (category !== "all" && s.species !== category) return false;
-      if (breed !== "all" && s.breed !== breed) return false;
-      return true;
-    });
-  }, [category, breed]);
+  // Group real available pets under each real live breeder
+  const entries = useMemo(() => {
+    return liveBreeders.map((b) => ({
+      ...b,
+      pets: allPets.filter((p) => p.breederName === b.businessName && p.status === "Available"),
+    }));
+  }, [liveBreeders, allPets]);
 
-  const live = filtered.filter((s) => s.isLive);
-  const upcoming = filtered.filter((s) => !s.isLive);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return entries.filter((entry) => {
+      if (q && !entry.businessName.toLowerCase().includes(q) && !entry.pets.some((p) => p.breed.toLowerCase().includes(q))) {
+        return false;
+      }
+      // No filter applied — show every live breeder, even ones with nothing listed yet.
+      if (category === "all" && breed === "all") return true;
+      // Otherwise, only show breeders with at least one matching available pet.
+      return entry.pets.some((p) => {
+        if (category !== "all" && speciesOf(p) !== category) return false;
+        if (breed !== "all" && p.breed !== breed) return false;
+        return true;
+      });
+    });
+  }, [entries, category, breed, search]);
 
   return (
     <SiteShell>
       <section className="border-b border-border/60 bg-secondary/30">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Explore</h1>
-          <p className="mt-1 text-muted-foreground">Live nurseries and scheduled Pet Showcases.</p>
+          <p className="mt-1 text-muted-foreground">Live nurseries from verified breeders and catteries.</p>
 
-          {/* Category chips */}
           <div className="mt-5 flex flex-wrap items-center gap-2">
             {CATEGORIES.map((c) => {
               const active = category === c.id;
@@ -96,7 +117,9 @@ function Explore() {
             <div className="flex max-w-xl flex-1 items-center gap-2 rounded-full border border-border bg-background px-4 py-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search breed, breeder, or city…"
+                placeholder="Search breeder or breed…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
               />
             </div>
@@ -132,73 +155,71 @@ function Explore() {
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <Tabs defaultValue="live">
           <TabsList>
-            <TabsTrigger value="live">Live now ({live.length})</TabsTrigger>
-            <TabsTrigger value="upcoming">Pet Showcase ({upcoming.length})</TabsTrigger>
+            <TabsTrigger value="live">Live now ({filtered.length})</TabsTrigger>
+            <TabsTrigger value="upcoming">Scheduled showcases</TabsTrigger>
           </TabsList>
 
           <TabsContent value="live" className="mt-6">
-            {live.length === 0 ? (
-              <EmptyState message="No live streams match this filter yet." />
+            {filtered.length === 0 ? (
+              <EmptyState
+                message={
+                  entries.length === 0
+                    ? "No breeders are live right now — check back soon."
+                    : "No live breeders match this filter right now."
+                }
+              />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {live.map((s) => (
-                  <Link
-                    key={s.id}
-                    to="/live/$streamId"
-                    params={{ streamId: s.id }}
-                    className="group overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-lg"
-                  >
-                    <div className="relative aspect-video overflow-hidden">
-                      <img src={s.thumbnail} alt={s.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
-                      <div className="absolute left-3 top-3"><LiveBadge /></div>
-                      <div className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-xs font-medium text-white">
-                        <Users className="h-3 w-3" /> {s.viewers}
+                {filtered.map((entry) => {
+                  const cover = entry.pets[0];
+                  const breeds = [...new Set(entry.pets.map((p) => p.breed))];
+                  return (
+                    <Link
+                      key={entry.id}
+                      to="/live/$streamId"
+                      params={{ streamId: entry.slug }}
+                      className="group overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-lg"
+                    >
+                      <div className="relative aspect-video overflow-hidden bg-secondary">
+                        {cover ? (
+                          <img
+                            src={cover.image}
+                            alt={entry.businessName}
+                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                            <PawPrint className="h-8 w-8" />
+                          </div>
+                        )}
+                        <div className="absolute left-3 top-3"><LiveBadge /></div>
                       </div>
-                    </div>
-                    <div className="p-4">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span aria-hidden>{s.species === "cat" ? "🐱" : "🐶"}</span>
-                        <span>{s.breed}</span>
-                        {s.verified && <VerifiedBadge />}
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{breeds.length > 0 ? breeds.join(", ") : "No pets listed yet"}</span>
+                          <VerifiedBadge />
+                        </div>
+                        <h3 className="mt-1 line-clamp-1 font-semibold">{entry.businessName}</h3>
+                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <ShieldCheck className="h-3 w-3" /> USDA #{entry.usdaLicense}
+                        </p>
                       </div>
-                      <h3 className="mt-1 line-clamp-1 font-semibold">{s.title}</h3>
-                      <p className="text-sm text-muted-foreground">{s.breeder}</p>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="upcoming" className="mt-6">
-            {upcoming.length === 0 ? (
-              <EmptyState message="No upcoming showcases match this filter yet." />
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {upcoming.map((s) => (
-                  <div key={s.id} className="overflow-hidden rounded-2xl border border-border bg-card">
-                    <div className="relative aspect-video overflow-hidden">
-                      <img src={s.thumbnail} alt={s.title} className="h-full w-full object-cover opacity-90" />
-                      <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-warm px-2.5 py-1 text-xs font-bold text-warm-foreground">
-                        <Calendar className="h-3 w-3" /> {s.scheduledFor}
-                      </div>
-                    </div>
-                    <div className="space-y-3 p-4">
-                      <div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span aria-hidden>{s.species === "cat" ? "🐱" : "🐶"}</span>
-                          <span>{s.breed}</span>
-                          {s.verified && <VerifiedBadge />}
-                        </div>
-                        <h3 className="mt-1 line-clamp-1 font-semibold">{s.title}</h3>
-                        <p className="text-sm text-muted-foreground">{s.breeder}</p>
-                      </div>
-                      <Button size="sm" variant="outline" className="w-full">Remind me</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="rounded-2xl border border-dashed border-border p-10 text-center">
+              <CalendarClock className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+              <h3 className="font-semibold">Scheduling isn't built yet</h3>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                Breeders can't schedule future streams yet — for now, check the "Live now" tab to see who's
+                broadcasting right this moment.
+              </p>
+            </div>
           </TabsContent>
         </Tabs>
       </section>
