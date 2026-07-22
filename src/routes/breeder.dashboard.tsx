@@ -57,7 +57,7 @@ import {
   type SaleType,
   type Species,
 } from '@/lib/pets-store';
-import { getSessionBreeder, logoutBreeder, type BreederAccount } from '@/lib/auth-store';
+import { getSessionBreeder, logoutBreeder, setBreederLive, type BreederAccount } from '@/lib/auth-store';
 
 export const Route = createFileRoute('/breeder/dashboard')({
   component: BreederDashboardPage,
@@ -849,7 +849,11 @@ function BreederDashboardPage() {
                   Uses your device's camera and mic directly in the browser — no separate streaming app needed.
                 </p>
               </div>
-              <AgoraBroadcast channelName={slugify(businessName)} />
+              <AgoraBroadcast
+                channelName={slugify(businessName)}
+                onLive={() => breeder && setBreederLive({ data: { id: breeder.id, isLive: true } })}
+                onOffline={() => breeder && setBreederLive({ data: { id: breeder.id, isLive: false } })}
+              />
             </Card>
           </TabsContent>
 
