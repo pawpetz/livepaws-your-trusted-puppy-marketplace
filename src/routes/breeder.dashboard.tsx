@@ -49,9 +49,12 @@ import {
   listPets,
   removeDocument,
   removePet,
+  updateEscrow,
   updatePet,
   type BreederDocument,
   type Pet,
+  type PetStatus,
+  type SaleType,
   type Species,
 } from '@/lib/pets-store';
 import { getSessionBreeder, logoutBreeder, type BreederAccount } from '@/lib/auth-store';
@@ -255,6 +258,26 @@ function BreederDashboardPage() {
     await refresh();
     setSavingEdit(false);
     setEditingPet(null);
+  };
+
+  const [editingEscrow, setEditingEscrow] = useState<Pet | null>(null);
+  const [savingEscrow, setSavingEscrow] = useState(false);
+
+  const handleSaveEscrow = async () => {
+    if (!editingEscrow) return;
+    setSavingEscrow(true);
+    await updateEscrow({
+      data: {
+        id: editingEscrow.id,
+        buyerName: editingEscrow.buyerName ?? '',
+        saleType: (editingEscrow.saleType ?? 'deposit') as SaleType,
+        escrowHeld: editingEscrow.escrowHeld ?? 0,
+        status: editingEscrow.status,
+      },
+    });
+    await refresh();
+    setSavingEscrow(false);
+    setEditingEscrow(null);
   };
 
   const heldTotal = pets.reduce((sum, p) => sum + (p.status !== 'Closed' ? p.escrowHeld ?? 0 : 0), 0);
@@ -802,13 +825,22 @@ function BreederDashboardPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {p.status !== 'Closed' ? (
-                            <Button size="sm" variant="outline" onClick={() => closeSale(p.id)}>
-                              <PackageCheck size={14} /> Confirm handoff
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Paid out</span>
-                          )}
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setEditingEscrow(p)}
+                              className="rounded-lg bg-secondary p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                              aria-label="Edit escrow entry"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            {p.status !== 'Closed' ? (
+                              <Button size="sm" variant="outline" onClick={() => closeSale(p.id)}>
+                                <PackageCheck size={14} /> Confirm handoff
+                              </Button>
+                            ) : (
+                              <span className="self-center text-xs text-muted-foreground">Paid out</span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -820,6 +852,71 @@ function BreederDashboardPage() {
                 receipt on their end will show up here as "Released" without you doing anything.
               </p>
             </Card>
+
+            {/* Edit escrow entry dialog — corrects buyer name, amount, sale type, or status directly */}
+            <Dialog open={!!editingEscrow} onOpenChange={(open) => !open && setEditingEscrow(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit escrow entry</DialogTitle>
+                </DialogHeader>
+                {editingEscrow && (
+                  <div className="space-y-3 text-xs">
+                    <div className="space-y-1.5">
+                      <Label>Buyer name</Label>
+                      <Input
+                        value={editingEscrow.buyerName ?? ''}
+                        onChange={(e) => setEditingEscrow({ ...editingEscrow, buyerName: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Sale type</Label>
+                        <select
+                          value={editingEscrow.saleType ?? 'deposit'}
+                          onChange={(e) => setEditingEscrow({ ...editingEscrow, saleType: e.target.value as SaleType })}
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring"
+                        >
+                          <option value="deposit">Deposit + balance</option>
+                          <option value="full">Paid in full</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Amount held ($)</Label>
+                        <Input
+                          type="number"
+                          value={editingEscrow.escrowHeld ?? 0}
+                          onChange={(e) => setEditingEscrow({ ...editingEscrow, escrowHeld: Number(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Status</Label>
+                      <select
+                        value={editingEscrow.status}
+                        onChange={(e) => setEditingEscrow({ ...editingEscrow, status: e.target.value as PetStatus })}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring"
+                      >
+                        <option value="Reserved">Reserved</option>
+                        <option value="Sold">Sold</option>
+                        <option value="Closed">Closed</option>
+                      </select>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Use this to fix mistakes (wrong buyer name, wrong amount) — not as a shortcut around
+                      the normal confirm-receipt flow when everything's actually correct.
+                    </p>
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditingEscrow(null)}>
+                    Cancel
+                  </Button>
+                  <Button disabled={savingEscrow} onClick={handleSaveEscrow}>
+                    Save changes
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
       </div>
