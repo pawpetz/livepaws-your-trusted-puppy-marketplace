@@ -110,25 +110,44 @@ export const logoutBreeder = createServerFn({ method: 'POST' })
   });
 
 // --- Admin (verification queue) ---
+//
+// Protected by a single shared password stored in the ADMIN_PASSWORD
+// environment variable (set this in Vercel -> Settings -> Environment
+// Variables; never commit the actual value to the repo). Every admin
+// action below checks it server-side, so knowing the /admin URL alone
+// isn't enough to approve or reject a breeder.
 
-export const listBreeders = createServerFn({ method: 'GET' }).handler(async () => {
-  const sql = getSql();
-  const rows = (await sql`SELECT * FROM breeders ORDER BY applied_at DESC`) as BreederRow[];
-  return rows.map(publicAccount);
-});
+function checkAdminPassword(password: string) {
+  const expected = process.env.ADMIN_PASSWORD;
+  if (!expected) {
+    throw new Error('ADMIN_PASSWORD is not set. Add it in Vercel -> Settings -> Environment Variables.');
+  }
+  return password === expected;
+}
+
+export const listBreeders = createServerFn({ method: 'POST' })
+  .validator((input: { password: string }) => input)
+  .handler(async ({ data }) => {
+    if (!checkAdminPassword(data.password)) return { ok: false as const, error: 'Incorrect password.' };
+    const sql = getSql();
+    const rows = (await sql`SELECT * FROM breeders ORDER BY applied_at DESC`) as BreederRow[];
+    return { ok: true as const, breeders: rows.map(publicAccount) };
+  });
 
 export const approveBreeder = createServerFn({ method: 'POST' })
-  .validator((input: { id: string }) => input)
+  .validator((input: { id: string; password: string }) => input)
   .handler(async ({ data }) => {
+    if (!checkAdminPassword(data.password)) return { ok: false as const, error: 'Incorrect password.' };
     const sql = getSql();
     await sql`UPDATE breeders SET status = 'approved' WHERE id = ${data.id}`;
-    return { ok: true };
+    return { ok: true as const };
   });
 
 export const rejectBreeder = createServerFn({ method: 'POST' })
-  .validator((input: { id: string }) => input)
+  .validator((input: { id: string; password: string }) => input)
   .handler(async ({ data }) => {
+    if (!checkAdminPassword(data.password)) return { ok: false as const, error: 'Incorrect password.' };
     const sql = getSql();
     await sql`UPDATE breeders SET status = 'rejected' WHERE id = ${data.id}`;
-    return { ok: true };
+    return { ok: true as const };
   });
