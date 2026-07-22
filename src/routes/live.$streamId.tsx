@@ -14,6 +14,7 @@ import {
 import { AgoraViewer } from '@/components/agora-viewer';
 import { getBreederBySlug } from '@/lib/auth-store';
 import { listPets, type Pet } from '@/lib/pets-store';
+import { listMessages, sendMessage, type ChatMessage } from '@/lib/chat-store';
 
 export const Route = createFileRoute('/live/$streamId')({
   loader: async ({ params }) => {
@@ -32,18 +33,51 @@ function LiveStreamPage() {
   const [chatMessage, setChatMessage] = useState('');
   const [viewerCount, setViewerCount] = useState(0);
   const [liked, setLiked] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [viewerName, setViewerName] = useState('');
+  const [nameInput, setNameInput] = useState('');
 
-  const [messages, setMessages] = useState([
-    { id: 1, user: 'Sarah M.', text: 'Are these pups doing well today?', time: '12:04 PM', isBreeder: false },
-    { id: 2, user: breeder?.businessName ?? 'Breeder', text: 'Yes, everyone is happy and healthy!', time: '12:05 PM', isBreeder: true },
-  ]);
+  // Ask for a display name once per browser, remember it after that.
+  useEffect(() => {
+    const saved = localStorage.getItem('livepaws_viewer_name');
+    if (saved) setViewerName(saved);
+  }, []);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Poll for new messages every 3s — a real shared chat, without needing
+  // a persistent websocket connection (which doesn't fit Vercel's
+  // serverless functions well).
+  useEffect(() => {
+    if (!streamId) return;
+    let cancelled = false;
+    const poll = async () => {
+      const msgs = await listMessages({ data: { channelSlug: streamId } });
+      if (!cancelled) setMessages(msgs);
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [streamId]);
+
+  const handleSetName = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatMessage.trim()) return;
-    setMessages([...messages, { id: Date.now(), user: 'You', text: chatMessage, time: 'Just now', isBreeder: false }]);
-    setChatMessage('');
+    if (!nameInput.trim()) return;
+    localStorage.setItem('livepaws_viewer_name', nameInput.trim());
+    setViewerName(nameInput.trim());
   };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatMessage.trim() || !viewerName) return;
+    const text = chatMessage;
+    setChatMessage('');
+    const msg = await sendMessage({ data: { channelSlug: streamId, userName: viewerName, text, isBreeder: false } });
+    setMessages((prev) => [...prev, msg]);
+  };
+
+  const pinnedMessage = messages.find((m) => m.pinned);
 
   if (!breeder) {
     return (
@@ -182,36 +216,68 @@ function LiveStreamPage() {
                 </div>
               </div>
 
+              {pinnedMessage && (
+                <div className="border-b border-amber-500/30 bg-amber-500/10 p-3">
+                  <p className="mb-0.5 flex items-center gap-1 text-[10px] font-bold text-amber-400">📌 Featured question</p>
+                  <p className="text-xs text-amber-100">
+                    <span className="font-semibold">{pinnedMessage.userName}:</span> {pinnedMessage.text}
+                  </p>
+                </div>
+              )}
+
               <div className="flex-1 space-y-3 overflow-y-auto p-4 font-sans text-xs">
+                {messages.length === 0 && (
+                  <p className="text-center text-gray-500">No messages yet — ask the breeder a question!</p>
+                )}
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
                     className={`rounded-xl p-3 ${msg.isBreeder ? 'border border-indigo-500/30 bg-indigo-950/60 text-indigo-100' : 'bg-gray-800/60 text-gray-200'}`}
                   >
                     <div className="mb-1 flex items-center justify-between">
-                      <span className={`font-bold ${msg.isBreeder ? 'text-indigo-400' : 'text-gray-300'}`}>{msg.user}</span>
-                      <span className="text-[10px] text-gray-500">{msg.time}</span>
+                      <span className={`font-bold ${msg.isBreeder ? 'text-indigo-400' : 'text-gray-300'}`}>
+                        {msg.userName}
+                        {msg.isBreeder && ' (Breeder)'}
+                      </span>
+                      <span className="text-[10px] text-gray-500">
+                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                      </span>
                     </div>
                     <p className="leading-relaxed">{msg.text}</p>
+                    {msg.flagged && (
+                      <p className="mt-1 text-[10px] text-amber-400">For your protection, contact sharing is disabled.</p>
+                    )}
                   </div>
                 ))}
               </div>
 
-              <form onSubmit={handleSendMessage} className="flex gap-2 border-t border-gray-800 p-3">
-                <input
-                  type="text"
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  placeholder="Ask the breeder a question..."
-                  className="flex-1 rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
-                />
-                <button type="submit" className="rounded-xl bg-indigo-600 p-2 text-white transition-colors hover:bg-indigo-500">
-                  <Send size={16} />
-                </button>
-              </form>
-              <p className="border-t border-gray-800 px-3 py-2 text-[10px] text-gray-500">
-                Chat isn't shared between viewers yet — messages you send only appear in your own browser.
-              </p>
+              {viewerName ? (
+                <form onSubmit={handleSendMessage} className="flex gap-2 border-t border-gray-800 p-3">
+                  <input
+                    type="text"
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    placeholder="Ask the breeder a question..."
+                    className="flex-1 rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
+                  />
+                  <button type="submit" className="rounded-xl bg-indigo-600 p-2 text-white transition-colors hover:bg-indigo-500">
+                    <Send size={16} />
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleSetName} className="flex gap-2 border-t border-gray-800 p-3">
+                  <input
+                    type="text"
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    placeholder="Enter your name to join the chat"
+                    className="flex-1 rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
+                  />
+                  <button type="submit" className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-500">
+                    Join
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
