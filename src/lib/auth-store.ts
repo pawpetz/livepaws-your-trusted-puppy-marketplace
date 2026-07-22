@@ -20,6 +20,7 @@ export type BreederAccount = {
   usdaLicense: string;
   status: BreederStatus;
   appliedAt: string;
+  isLive: boolean;
 };
 
 function getSql() {
@@ -40,6 +41,7 @@ type BreederRow = {
   usda_license: string;
   status: string;
   applied_at: string;
+  is_live: boolean;
 };
 
 function publicAccount(r: BreederRow): BreederAccount {
@@ -50,7 +52,15 @@ function publicAccount(r: BreederRow): BreederAccount {
     usdaLicense: r.usda_license,
     status: r.status as BreederStatus,
     appliedAt: r.applied_at,
+    isLive: r.is_live,
   };
+}
+
+// Same slug format used for the Agora channel name — turns a business
+// name into something usable in a URL, e.g. "Oakwood Paws & Cattery
+// Studio" -> "oakwood-paws-cattery-studio".
+function slugify(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
 export const applyAsBreeder = createServerFn({ method: 'POST' })
@@ -108,6 +118,36 @@ export const logoutBreeder = createServerFn({ method: 'POST' })
     await sql`DELETE FROM sessions WHERE token = ${data.token}`;
     return { ok: true };
   });
+
+// Flipped by the real Agora broadcast component when a breeder actually
+// starts/stops their camera — not just a UI toggle, so "live now" lists
+// elsewhere in the app reflect something real.
+export const setBreederLive = createServerFn({ method: 'POST' })
+  .validator((input: { id: string; isLive: boolean }) => input)
+  .handler(async ({ data }) => {
+    const sql = getSql();
+    await sql`UPDATE breeders SET is_live = ${data.isLive} WHERE id = ${data.id}`;
+    return { ok: true };
+  });
+
+// Resolves a URL slug (e.g. "oakwood-paws-cattery-studio") back to the
+// real breeder it belongs to. Slugs aren't stored — computed on the fly
+// from business_name, since there's no separate slug column (yet).
+export const getBreederBySlug = createServerFn({ method: 'GET' })
+  .validator((input: { slug: string }) => input)
+  .handler(async ({ data }) => {
+    const sql = getSql();
+    const rows = (await sql`SELECT * FROM breeders WHERE status = 'approved'`) as BreederRow[];
+    const match = rows.find((r) => slugify(r.business_name) === data.slug);
+    return match ? publicAccount(match) : null;
+  });
+
+// For explore/landing "live now" sections.
+export const listLiveBreeders = createServerFn({ method: 'GET' }).handler(async () => {
+  const sql = getSql();
+  const rows = (await sql`SELECT * FROM breeders WHERE status = 'approved' AND is_live = true`) as BreederRow[];
+  return rows.map((r) => ({ ...publicAccount(r), slug: slugify(r.business_name) }));
+});
 
 // --- Admin (verification queue) ---
 //
