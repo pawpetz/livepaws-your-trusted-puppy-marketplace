@@ -15,6 +15,7 @@ import { AgoraViewer } from '@/components/agora-viewer';
 import { getBreederBySlug } from '@/lib/auth-store';
 import { listPets, type Pet } from '@/lib/pets-store';
 import { listMessages, sendMessage, type ChatMessage } from '@/lib/chat-store';
+import { getSessionBuyer, type BuyerAccount } from '@/lib/buyer-auth';
 
 export const Route = createFileRoute('/live/$streamId')({
   loader: async ({ params }) => {
@@ -34,13 +35,21 @@ function LiveStreamPage() {
   const [viewerCount, setViewerCount] = useState(0);
   const [liked, setLiked] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [viewerName, setViewerName] = useState('');
-  const [nameInput, setNameInput] = useState('');
+  const [buyer, setBuyer] = useState<BuyerAccount | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
-  // Ask for a display name once per browser, remember it after that.
+  // Chat requires a real signed-in buyer, so messages are tied to a known
+  // identity instead of anyone typing any name.
   useEffect(() => {
-    const saved = localStorage.getItem('livepaws_viewer_name');
-    if (saved) setViewerName(saved);
+    const token = localStorage.getItem('livepaws_buyer_token');
+    if (!token) {
+      setAuthChecked(true);
+      return;
+    }
+    getSessionBuyer({ data: { token } }).then((account) => {
+      setBuyer(account);
+      setAuthChecked(true);
+    });
   }, []);
 
   // Poll for new messages every 3s — a real shared chat, without needing
@@ -61,19 +70,12 @@ function LiveStreamPage() {
     };
   }, [streamId]);
 
-  const handleSetName = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nameInput.trim()) return;
-    localStorage.setItem('livepaws_viewer_name', nameInput.trim());
-    setViewerName(nameInput.trim());
-  };
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatMessage.trim() || !viewerName) return;
+    if (!chatMessage.trim() || !buyer) return;
     const text = chatMessage;
     setChatMessage('');
-    const msg = await sendMessage({ data: { channelSlug: streamId, userName: viewerName, text, isBreeder: false } });
+    const msg = await sendMessage({ data: { channelSlug: streamId, userName: buyer.name, text, isBreeder: false } });
     setMessages((prev) => [...prev, msg]);
   };
 
@@ -251,7 +253,7 @@ function LiveStreamPage() {
                 ))}
               </div>
 
-              {viewerName ? (
+              {buyer ? (
                 <form onSubmit={handleSendMessage} className="flex gap-2 border-t border-gray-800 p-3">
                   <input
                     type="text"
@@ -265,18 +267,17 @@ function LiveStreamPage() {
                   </button>
                 </form>
               ) : (
-                <form onSubmit={handleSetName} className="flex gap-2 border-t border-gray-800 p-3">
-                  <input
-                    type="text"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Enter your name to join the chat"
-                    className="flex-1 rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
-                  />
-                  <button type="submit" className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-500">
-                    Join
-                  </button>
-                </form>
+                <div className="flex items-center justify-between gap-2 border-t border-gray-800 p-3">
+                  <p className="text-xs text-gray-400">
+                    {authChecked ? 'Sign in to ask a question.' : 'Checking your session…'}
+                  </p>
+                  <Link
+                    to="/account"
+                    className="shrink-0 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-500"
+                  >
+                    Sign in
+                  </Link>
+                </div>
               )}
             </div>
           </div>
