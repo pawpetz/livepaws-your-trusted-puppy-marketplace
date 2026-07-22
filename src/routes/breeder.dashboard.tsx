@@ -9,7 +9,6 @@ import {
   FileText,
   Camera,
   Clock,
-  Copy,
   CheckCircle2,
   Trash2,
   Cat,
@@ -24,6 +23,7 @@ import {
   ImagePlus,
   Hourglass,
 } from 'lucide-react';
+import { AgoraBroadcast } from '@/components/agora-broadcast';
 import { SiteShell } from '@/components/site-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
@@ -70,6 +70,12 @@ const statusStyle: Record<Pet['status'], string> = {
   Closed: 'bg-secondary text-muted-foreground border-border',
 };
 
+// Agora channel names have character restrictions, so the breeder's
+// business name gets turned into a plain slug to use as the channel.
+function slugify(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -81,7 +87,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 function BreederDashboardPage() {
   const navigate = useNavigate();
-  const [isLive, setIsLive] = useState(true);
+  const [activeTab, setActiveTab] = useState('listings');
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
   const [breeder, setBreeder] = useState<BreederAccount | null>(null);
@@ -323,16 +329,8 @@ function BreederDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setIsLive(!isLive)}
-              className={
-                isLive
-                  ? 'bg-live text-live-foreground hover:bg-live/90'
-                  : 'bg-trust text-trust-foreground hover:bg-trust/90'
-              }
-            >
-              <Radio size={16} className={isLive ? 'live-pulse' : ''} />
-              {isLive ? 'Nursery Camera Live' : 'Start Live Camera'}
+            <Button onClick={() => setActiveTab('stream')} className="bg-live text-live-foreground hover:bg-live/90">
+              <Radio size={16} /> Go to Nursery Camera
             </Button>
             <Button variant="outline" onClick={handleLogout}>
               Log out
@@ -340,7 +338,7 @@ function BreederDashboardPage() {
           </div>
         </Card>
 
-        <Tabs defaultValue="listings">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="listings"><Dog size={15} className="mr-1.5" /> Pet Listings ({pets.length})</TabsTrigger>
             <TabsTrigger value="documents"><FileText size={15} className="mr-1.5" /> Health &amp; Vet Vault ({documents.length})</TabsTrigger>
@@ -840,28 +838,18 @@ function BreederDashboardPage() {
             </div>
           </TabsContent>
 
-          {/* TAB 3: STREAM SETUP */}
+          {/* TAB 3: STREAM SETUP — real Agora broadcast, browser camera/mic only */}
           <TabsContent value="stream">
-            <Card className="max-w-2xl space-y-6 p-6">
+            <Card className="max-w-2xl space-y-4 p-6">
               <div>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Camera className="text-primary" size={20} /> Single Nursery Camera Feed
+                  <Camera className="text-primary" size={20} /> Nursery Camera
                 </CardTitle>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Connect your mobile camera or RTMP stream. Keep it simple and go live in seconds.
+                  Uses your device's camera and mic directly in the browser — no separate streaming app needed.
                 </p>
               </div>
-              <div className="space-y-3 rounded-xl border border-border bg-secondary/40 p-4 text-xs">
-                <div>
-                  <span className="mb-1 block font-bold">Your Unique Live Stream Key</span>
-                  <span className="block overflow-x-auto rounded-lg border border-border bg-background p-2 font-mono text-muted-foreground">
-                    rtmp://live.livepaws.health/app/oakwood_nursery_feed
-                  </span>
-                </div>
-                <Button variant="secondary" size="sm">
-                  <Copy size={14} /> Copy Stream Key
-                </Button>
-              </div>
+              <AgoraBroadcast channelName={slugify(businessName)} />
             </Card>
           </TabsContent>
 
