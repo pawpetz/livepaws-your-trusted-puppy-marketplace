@@ -17,12 +17,14 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { AgoraViewer } from '@/components/agora-viewer';
 
 export const Route = createFileRoute('/live/$streamId')({
   component: LiveStreamPage,
 });
 
 function LiveStreamPage() {
+  const { streamId } = Route.useParams();
   const [activeCamera, setActiveCamera] = useState('cam-1');
   const [chatMessage, setChatMessage] = useState('');
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -96,11 +98,7 @@ function LiveStreamPage() {
           {/* Main Video Viewport */}
           <div className="lg:col-span-2 space-y-4">
             <div className="relative aspect-video bg-gray-900 rounded-2xl overflow-hidden border border-gray-800 shadow-2xl group">
-              <img 
-                src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80" 
-                alt="Live Puppy Nursery Feed" 
-                className="w-full h-full object-cover"
-              />
+              <AgoraViewer channelName={streamId} />
 
               <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10">
                 <Users size={14} className="text-indigo-400" />
