@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Radio, Video, VideoOff, Mic, MicOff } from 'lucide-react';
+import { Radio, Video, VideoOff, Mic, MicOff, Circle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { getAgoraToken } from '@/lib/agora';
 
 /* ------------------------------------------------------------
@@ -15,6 +16,13 @@ import { getAgoraToken } from '@/lib/agora';
    AGORA_APP_CERTIFICATE in Vercel before it can actually connect.
    Until then, clicking "Start Live Camera" will show a clear error
    instead of pretending to work.
+
+   RECORDING: uses the browser's built-in MediaRecorder on the same
+   camera/mic tracks being streamed — this saves a file to the
+   breeder's own device when they stop, entirely client-side. This
+   is different from "cloud recording" (a paid, server-side Agora
+   feature that would keep a permanent copy on a server) — that's a
+   bigger, separate integration if it's ever needed later.
 ------------------------------------------------------------ */
 
 export function AgoraBroadcast({
@@ -31,14 +39,19 @@ export function AgoraBroadcast({
   const [camOn, setCamOn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [recordSession, setRecordSession] = useState(false);
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLDivElement>(null);
 
   const clientRef = useRef<any>(null);
   const localTracksRef = useRef<any[]>([]);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   const goLive = async () => {
     setConnecting(true);
     setError(null);
+    setRecordingUrl(null);
     try {
       const AgoraRTC = (await import('agora-rtc-sdk-ng')).default;
       const uid = Math.floor(Math.random() * 100000);
@@ -61,6 +74,22 @@ export function AgoraBroadcast({
       localTracksRef.current = [micTrack, camTrack];
       setIsLive(true);
       onLive?.();
+
+      if (recordSession && typeof MediaRecorder !== 'undefined') {
+        try {
+          const stream = new MediaStream([camTrack.getMediaStreamTrack(), micTrack.getMediaStreamTrack()]);
+          const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9,opus' });
+          recordedChunksRef.current = [];
+          recorder.ondataavailable = (e) => {
+            if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+          };
+          recorder.start(1000);
+          recorderRef.current = recorder;
+        } catch {
+          // Recording is a nice-to-have, not critical — if it fails to start,
+          // the stream itself should still go live fine.
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start the stream.');
     } finally {
@@ -69,6 +98,16 @@ export function AgoraBroadcast({
   };
 
   const stopLive = async () => {
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      await new Promise<void>((resolve) => {
+        recorderRef.current!.onstop = () => resolve();
+        recorderRef.current!.stop();
+      });
+      const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+      setRecordingUrl(URL.createObjectURL(blob));
+      recorderRef.current = null;
+    }
+
     localTracksRef.current.forEach((track) => {
       track.stop();
       track.close();
@@ -91,6 +130,7 @@ export function AgoraBroadcast({
       });
       clientRef.current?.leave();
       if (isLive) onOffline?.();
+      if (recordingUrl) URL.revokeObjectURL(recordingUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -128,12 +168,24 @@ export function AgoraBroadcast({
             <span className="live-pulse h-1.5 w-1.5 rounded-full bg-live-foreground" /> LIVE
           </div>
         )}
+        {isLive && recorderRef.current && (
+          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-xs font-medium text-white">
+            <Circle size={8} className="fill-red-500 text-red-500" /> Recording
+          </div>
+        )}
       </div>
 
       {error && (
         <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
           {error}
         </p>
+      )}
+
+      {!isLive && (
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Checkbox checked={recordSession} onCheckedChange={(v) => setRecordSession(!!v)} />
+          Save a recording of this session to my device when I end it
+        </label>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -155,6 +207,19 @@ export function AgoraBroadcast({
           </Button>
         )}
       </div>
+
+      {recordingUrl && (
+        <div className="flex items-center justify-between rounded-lg border border-trust/30 bg-trust/10 p-2.5 text-xs">
+          <span className="text-trust">Your recording is ready.</span>
+          <a
+            href={recordingUrl}
+            download={`livepaws-stream-${Date.now()}.webm`}
+            className="flex items-center gap-1 font-semibold text-trust underline"
+          >
+            <Download size={13} /> Download
+          </a>
+        </div>
+      )}
     </div>
   );
 }
