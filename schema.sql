@@ -78,3 +78,14 @@ VALUES
   ('d1', 'Oakwood Paws & Cattery Studio', 'State Breeder License / Registration', 'breeder-license.pdf', 'Verified', '2026-01-15'),
   ('d2', 'Oakwood Paws & Cattery Studio', 'Vet Inspection & Health Certificates', 'vet-inspection-2026.pdf', 'Verified', '2026-06-20')
 ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id TEXT PRIMARY KEY,
+  channel_slug TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  text TEXT NOT NULL,
+  is_breeder BOOLEAN NOT NULL DEFAULT false,
+  pinned BOOLEAN NOT NULL DEFAULT false,
+  flagged BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
