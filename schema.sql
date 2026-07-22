@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS pets (
   collar TEXT NOT NULL DEFAULT '',
   price INTEGER NOT NULL,
   deposit INTEGER NOT NULL DEFAULT 250,
+  sale_terms TEXT NOT NULL DEFAULT 'deposit' CHECK (sale_terms IN ('full', 'deposit')),
   sale_type TEXT CHECK (sale_type IN ('full', 'deposit')),
   status TEXT NOT NULL CHECK (status IN ('Available', 'Reserved', 'Sold', 'Closed')) DEFAULT 'Available',
   microchip TEXT NOT NULL DEFAULT '',
@@ -64,11 +65,11 @@ INSERT INTO breeders (id, business_name, email, password, usda_license, status, 
 VALUES ('demo-breeder', 'Oakwood Paws & Cattery Studio', 'demo@livepaws.example', 'demo1234', '22-B-0087', 'approved', '2026-01-10')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO pets (id, species, name, breed, bio, age_weeks, location, image, sex, collar, price, deposit, sale_type, status, microchip, breeder_name, buyer_name, escrow_held, pickup_available, shipping_available, shipping_fee)
+INSERT INTO pets (id, species, name, breed, bio, age_weeks, location, image, sex, collar, price, deposit, sale_terms, sale_type, status, microchip, breeder_name, buyer_name, escrow_held, pickup_available, shipping_available, shipping_fee)
 VALUES
-  ('1', 'Dog', 'Puppy #1 (Light Cream)', 'Golden Retriever', 'Playful and affectionate, already crate-training well. Loves belly rubs and squeaky toys.', 9, 'Bend, OR', 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=800&q=60', 'Female', 'Pink Collar', 1800, 250, 'deposit', 'Reserved', '9851410029381', 'Oakwood Paws & Cattery Studio', 'Sarah Miller', 250, true, true, 250),
-  ('2', 'Cat', 'Kitten #1 (Blue Point Ragdoll)', 'Ragdoll', 'Gentle lap cat in training — calm around noise and already used to being handled daily.', 10, 'Bend, OR', 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&w=800&q=60', 'Male', 'Blue Collar', 1500, 200, NULL, 'Available', '9851410029399', 'Oakwood Paws & Cattery Studio', NULL, NULL, true, false, NULL),
-  ('3', 'Dog', 'Puppy #3 (Dark Golden)', 'Golden Retriever', 'The bold one of the litter — first to explore new toys, good with other dogs.', 9, 'Bend, OR', 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=800&q=60', 'Male', 'Green Collar', 1800, 250, 'full', 'Sold', '9851410029383', 'Oakwood Paws & Cattery Studio', 'Marcus Vance', 1800, true, true, 250)
+  ('1', 'Dog', 'Puppy #1 (Light Cream)', 'Golden Retriever', 'Playful and affectionate, already crate-training well. Loves belly rubs and squeaky toys.', 9, 'Bend, OR', 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=800&q=60', 'Female', 'Pink Collar', 1800, 250, 'deposit', 'deposit', 'Reserved', '9851410029381', 'Oakwood Paws & Cattery Studio', 'Sarah Miller', 250, true, true, 250),
+  ('2', 'Cat', 'Kitten #1 (Blue Point Ragdoll)', 'Ragdoll', 'Gentle lap cat in training — calm around noise and already used to being handled daily.', 10, 'Bend, OR', 'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&w=800&q=60', 'Male', 'Blue Collar', 1500, 200, 'deposit', NULL, 'Available', '9851410029399', 'Oakwood Paws & Cattery Studio', NULL, NULL, true, false, NULL),
+  ('3', 'Dog', 'Puppy #3 (Dark Golden)', 'Golden Retriever', 'The bold one of the litter — first to explore new toys, good with other dogs.', 9, 'Bend, OR', 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=800&q=60', 'Male', 'Green Collar', 1800, 250, 'full', 'full', 'Sold', '9851410029383', 'Oakwood Paws & Cattery Studio', 'Marcus Vance', 1800, true, true, 250)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO documents (id, breeder_name, title, file_name, status, uploaded_at)
