@@ -116,3 +116,19 @@ export const unpinMessage = createServerFn({ method: 'POST' })
     await sql`UPDATE chat_messages SET pinned = false WHERE id = ${data.id}`;
     return { ok: true };
   });
+
+// Admin-only: every flagged message across every stream, for moderation.
+// Password-checked server-side, same pattern as the other admin functions.
+export const listFlaggedMessages = createServerFn({ method: 'POST' })
+  .validator((input: { password: string }) => input)
+  .handler(async ({ data }) => {
+    const expected = process.env.ADMIN_PASSWORD;
+    if (!expected || data.password !== expected) {
+      return { ok: false as const, error: 'Incorrect password.' };
+    }
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT * FROM chat_messages WHERE flagged = true ORDER BY created_at DESC LIMIT 200
+    `) as ChatRow[];
+    return { ok: true as const, messages: rows.map(rowToMessage) };
+  });
