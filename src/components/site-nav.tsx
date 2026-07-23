@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { 
   Dog, 
   Cat, 
@@ -20,6 +21,13 @@ import {
 export const TopNav: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+
+  const runSearch = () => {
+    if (!searchTerm.trim()) return;
+    navigate({ to: '/explore', search: { q: searchTerm.trim() } as any });
+  };
 
   const toggleDropdown = (name: string) => {
     setActiveDropdown(activeDropdown === name ? null : name);
@@ -122,6 +130,9 @@ export const TopNav: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="Search breeds or kennels..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && runSearch()}
                 className="w-full pl-9 pr-4 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:border-indigo-500 transition-all"
               />
             </div>
