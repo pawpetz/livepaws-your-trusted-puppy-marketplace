@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { createServerFn } from '@tanstack/react-start';
+import { hashPassword, verifyPassword } from './password';
 
 /* ------------------------------------------------------------
    Breeder accounts + verification — now backed by the same
@@ -104,9 +105,10 @@ export const applyAsBreeder = createServerFn({ method: 'POST' })
     }
     const id = crypto.randomUUID();
     const appliedAt = new Date().toISOString().slice(0, 10);
+    const hashed = await hashPassword(data.password);
     await sql`
       INSERT INTO breeders (id, business_name, full_name, email, password, phone, location, license_type, usda_license, status, applied_at)
-      VALUES (${id}, ${data.businessName}, ${data.fullName}, ${data.email}, ${data.password}, ${data.phone}, ${data.location}, ${data.licenseType}, ${data.licenseNumber}, 'pending', ${appliedAt})
+      VALUES (${id}, ${data.businessName}, ${data.fullName}, ${data.email}, ${hashed}, ${data.phone}, ${data.location}, ${data.licenseType}, ${data.licenseNumber}, 'pending', ${appliedAt})
     `;
     return { ok: true as const, id };
   });
@@ -117,7 +119,7 @@ export const loginBreeder = createServerFn({ method: 'POST' })
     const sql = getSql();
     const rows = (await sql`SELECT * FROM breeders WHERE lower(email) = lower(${data.email})`) as BreederRow[];
     const account = rows[0];
-    if (!account || account.password !== data.password) {
+    if (!account || !(await verifyPassword(data.password, account.password))) {
       return { ok: false as const, error: 'invalid' as const };
     }
     if (account.status !== 'approved') {
