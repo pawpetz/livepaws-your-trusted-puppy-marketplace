@@ -109,3 +109,16 @@ CREATE TABLE IF NOT EXISTS buyer_sessions (
 );
 
 ALTER TABLE pets ADD COLUMN IF NOT EXISTS buyer_email TEXT;
+
+CREATE TABLE IF NOT EXISTS admins (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  token TEXT PRIMARY KEY,
+  admin_id TEXT NOT NULL REFERENCES admins(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
