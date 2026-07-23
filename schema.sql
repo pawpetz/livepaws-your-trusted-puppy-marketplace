@@ -9,9 +9,13 @@
 CREATE TABLE IF NOT EXISTS breeders (
   id TEXT PRIMARY KEY,
   business_name TEXT NOT NULL,
+  full_name TEXT NOT NULL DEFAULT '',
   email TEXT NOT NULL UNIQUE,
   password TEXT NOT NULL, -- TODO: hash before real users touch this
-  usda_license TEXT NOT NULL,
+  phone TEXT NOT NULL DEFAULT '',
+  location TEXT NOT NULL DEFAULT '',
+  license_type TEXT NOT NULL DEFAULT 'usda' CHECK (license_type IN ('usda', 'state', 'none')),
+  usda_license TEXT NOT NULL DEFAULT '', -- the license NUMBER, regardless of type
   status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
   applied_at TEXT NOT NULL,
   is_live BOOLEAN NOT NULL DEFAULT false
@@ -63,8 +67,8 @@ CREATE TABLE IF NOT EXISTS documents (
 -- Seed: the same demo breeder + pets currently hardcoded in the app,
 -- so switching to Postgres doesn't lose the ability to click through
 -- the demo (demo@livepaws.example / demo1234).
-INSERT INTO breeders (id, business_name, email, password, usda_license, status, applied_at)
-VALUES ('demo-breeder', 'Oakwood Paws & Cattery Studio', 'demo@livepaws.example', 'demo1234', '22-B-0087', 'approved', '2026-01-10')
+INSERT INTO breeders (id, business_name, full_name, email, password, phone, location, license_type, usda_license, status, applied_at)
+VALUES ('demo-breeder', 'Oakwood Paws & Cattery Studio', 'Jamie Oakwood', 'demo@livepaws.example', 'demo1234', '555-201-4432', 'Bend, OR', 'usda', '22-B-0087', 'approved', '2026-01-10')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO pets (id, species, name, breed, bio, age_weeks, location, image, sex, collar, price, deposit, sale_terms, sale_type, status, microchip, breeder_name, buyer_name, escrow_held, pickup_available, shipping_available, shipping_fee)
