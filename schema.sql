@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS documents (
 -- so switching to Postgres doesn't lose the ability to click through
 -- the demo (demo@livepaws.example / demo1234).
 INSERT INTO breeders (id, business_name, full_name, email, password, phone, location, license_type, usda_license, status, applied_at)
-VALUES ('demo-breeder', 'Oakwood Paws & Cattery Studio', 'Jamie Oakwood', 'demo@livepaws.example', 'demo1234', '555-201-4432', 'Bend, OR', 'usda', '22-B-0087', 'approved', '2026-01-10')
+VALUES ('demo-breeder', 'Oakwood Paws & Cattery Studio', 'Jamie Oakwood', 'demo@livepaws.example', '3d2505f9234ba2dd37fb19cf6e8d1295:8948f294b29f1378401a6212989410ee436fdb38340e07e39d94a0489f2238fb9c749613efa2a5a307f9f00f4279327533ca1249ea1d7994351a9509a7d4936b', '555-201-4432', 'Bend, OR', 'usda', '22-B-0087', 'approved', '2026-01-10')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO pets (id, species, name, breed, bio, age_weeks, location, image, sex, collar, price, deposit, sale_terms, sale_type, status, microchip, breeder_name, buyer_name, escrow_held, pickup_available, shipping_available, shipping_fee)
