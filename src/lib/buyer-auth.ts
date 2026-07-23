@@ -78,3 +78,17 @@ export const logoutBuyer = createServerFn({ method: 'POST' })
     await sql`DELETE FROM buyer_sessions WHERE token = ${data.token}`;
     return { ok: true };
   });
+
+// Admin-only: full buyer directory. Password-checked server-side, same
+// pattern as the breeder admin functions in auth-store.ts.
+export const listBuyersForAdmin = createServerFn({ method: 'POST' })
+  .validator((input: { password: string }) => input)
+  .handler(async ({ data }) => {
+    const expected = process.env.ADMIN_PASSWORD;
+    if (!expected || data.password !== expected) {
+      return { ok: false as const, error: 'Incorrect password.' };
+    }
+    const sql = getSql();
+    const rows = (await sql`SELECT * FROM buyers ORDER BY name`) as BuyerRow[];
+    return { ok: true as const, buyers: rows.map((r) => publicBuyer(r)) };
+  });
