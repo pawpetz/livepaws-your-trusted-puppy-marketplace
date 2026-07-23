@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /account
+Disallow: /breeder/dashboard
+Disallow: /checkout
+
+Sitemap: https://YOUR-DOMAIN-HERE/sitemap.xml
