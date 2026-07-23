@@ -9,12 +9,16 @@ import { Label } from '@/components/ui/label';
 import { applyAsBreeder, loginBreeder } from '@/lib/auth-store';
 
 export const Route = createFileRoute('/breeder/apply')({
+  validateSearch: (search: Record<string, unknown>): { mode?: 'apply' | 'signin' } => ({
+    mode: search.mode === 'signin' ? 'signin' : undefined,
+  }),
   head: () => ({ meta: [{ title: 'Become a verified breeder — LivePaws' }] }),
   component: BreederApplyPage,
 });
 
 function BreederApplyPage() {
-  const [mode, setMode] = useState<'apply' | 'signin'>('apply');
+  const { mode: initialMode } = Route.useSearch();
+  const [mode, setMode] = useState<'apply' | 'signin'>(initialMode ?? 'apply');
 
   return (
     <SiteShell>
