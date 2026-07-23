@@ -25,6 +25,25 @@ export const Route = createFileRoute('/live/$streamId')({
     const pets = allPets.filter((p) => p.breederName === breeder.businessName && p.status === 'Available');
     return { breeder, pets };
   },
+  head: ({ loaderData }) => {
+    const breeder = loaderData?.breeder;
+    if (!breeder) {
+      return { meta: [{ title: 'Live stream — LivePaws' }] };
+    }
+    const breeds = [...new Set((loaderData?.pets ?? []).map((p) => p.breed))];
+    const title = `${breeder.businessName} — Live now on LivePaws`;
+    const description = breeds.length
+      ? `Watch ${breeder.businessName} live now — ${breeds.join(', ')} available with escrow-backed reservations.`
+      : `Watch ${breeder.businessName} live now on LivePaws.`;
+    return {
+      meta: [
+        { title },
+        { name: 'description', content: description },
+        { property: 'og:title', content: title },
+        { property: 'og:description', content: description },
+      ],
+    };
+  },
   component: LiveStreamPage,
 });
 
