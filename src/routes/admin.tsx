@@ -25,29 +25,47 @@ import { approveBreeder, listBreeders, rejectBreeder, type BreederAccount } from
 import { listPets, type Pet } from '@/lib/pets-store';
 import { listBuyersForAdmin, type BuyerAccount } from '@/lib/buyer-auth';
 import { listFlaggedMessages, type ChatMessage } from '@/lib/chat-store';
+import { createAdmin, getSessionAdmin, loginAdmin, logoutAdmin, type AdminAccount } from '@/lib/admin-auth';
 
 export const Route = createFileRoute('/admin')({
   head: () => ({ meta: [{ title: 'Admin — LivePaws' }] }),
   component: AdminPage,
 });
 
-const SESSION_KEY = 'livepaws_admin_password';
+const TOKEN_KEY = 'livepaws_admin_token';
 
 function AdminPage() {
-  const [password, setPassword] = useState<string | null>(null);
+  const [admin, setAdmin] = useState<AdminAccount | null>(null);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    const saved = sessionStorage.getItem(SESSION_KEY);
-    if (saved) setPassword(saved);
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      setChecked(true);
+      return;
+    }
+    getSessionAdmin({ data: { token } }).then((account) => {
+      if (!account) localStorage.removeItem(TOKEN_KEY);
+      setAdmin(account);
+      setChecked(true);
+    });
   }, []);
 
-  if (!password) {
+  if (!checked) {
     return (
       <SiteShell>
-        <PasswordGate
-          onUnlock={(pw) => {
-            sessionStorage.setItem(SESSION_KEY, pw);
-            setPassword(pw);
+        <p className="mx-auto max-w-sm px-4 py-16 text-center text-sm text-muted-foreground sm:px-6">Loading…</p>
+      </SiteShell>
+    );
+  }
+
+  if (!admin) {
+    return (
+      <SiteShell>
+        <AdminAuthGate
+          onAuthed={(account, token) => {
+            localStorage.setItem(TOKEN_KEY, token);
+            setAdmin(account);
           }}
         />
       </SiteShell>
@@ -57,33 +75,24 @@ function AdminPage() {
   return (
     <SiteShell>
       <AdminControlCenter
-        password={password}
+        admin={admin}
+        onLogout={async () => {
+          const token = localStorage.getItem(TOKEN_KEY);
+          if (token) await logoutAdmin({ data: { token } });
+          localStorage.removeItem(TOKEN_KEY);
+          setAdmin(null);
+        }}
         onAuthFailed={() => {
-          sessionStorage.removeItem(SESSION_KEY);
-          setPassword(null);
+          localStorage.removeItem(TOKEN_KEY);
+          setAdmin(null);
         }}
       />
     </SiteShell>
   );
 }
 
-function PasswordGate({ onUnlock }: { onUnlock: (password: string) => void }) {
-  const [input, setInput] = useState('');
-  const [checking, setChecking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setChecking(true);
-    setError(null);
-    const res = await listBreeders({ data: { password: input } });
-    setChecking(false);
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    onUnlock(input);
-  };
+function AdminAuthGate({ onAuthed }: { onAuthed: (admin: AdminAccount, token: string) => void }) {
+  const [mode, setMode] = useState<'signin' | 'create'>('signin');
 
   return (
     <div className="mx-auto max-w-sm space-y-4 px-4 py-16 sm:px-6">
@@ -94,41 +103,185 @@ function PasswordGate({ onUnlock }: { onUnlock: (password: string) => void }) {
         <h1 className="text-xl font-bold">Admin access</h1>
         <p className="mt-1 text-sm text-muted-foreground">This area is restricted.</p>
       </div>
-      <Card className="p-5">
-        <form onSubmit={handleSubmit} className="space-y-3 text-sm">
-          <div className="space-y-1.5">
-            <Label htmlFor="admin-password">Admin password</Label>
-            <Input
-              id="admin-password"
-              type="password"
-              autoFocus
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-            />
-          </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
-          <Button type="submit" disabled={checking} className="w-full">
-            {checking ? 'Checking…' : 'Unlock'}
-          </Button>
-        </form>
-      </Card>
+
+      <div className="flex justify-center gap-2 text-sm">
+        <button
+          onClick={() => setMode('signin')}
+          className={mode === 'signin' ? 'font-semibold text-primary underline underline-offset-4' : 'text-muted-foreground'}
+        >
+          Sign in
+        </button>
+        <span className="text-muted-foreground">·</span>
+        <button
+          onClick={() => setMode('create')}
+          className={mode === 'create' ? 'font-semibold text-primary underline underline-offset-4' : 'text-muted-foreground'}
+        >
+          Create admin account
+        </button>
+      </div>
+
+      {mode === 'signin' ? <AdminSignIn onAuthed={onAuthed} /> : <AdminCreateAccount onDone={() => setMode('signin')} />}
     </div>
   );
 }
 
-function AdminControlCenter({ password, onAuthFailed }: { password: string; onAuthFailed: () => void }) {
+function AdminSignIn({ onAuthed }: { onAuthed: (admin: AdminAccount, token: string) => void }) {
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChecking(true);
+    setError(null);
+    const res = await loginAdmin({ data: form });
+    setChecking(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    onAuthed(res.admin, res.token);
+  };
+
+  return (
+    <Card className="p-5">
+      <form onSubmit={handleSubmit} className="space-y-3 text-sm">
+        <div className="space-y-1.5">
+          <Label htmlFor="admin-email">Email</Label>
+          <Input
+            id="admin-email"
+            type="email"
+            autoFocus
+            required
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="admin-password">Password</Label>
+          <Input
+            id="admin-password"
+            type="password"
+            required
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <Button type="submit" disabled={checking} className="w-full">
+          {checking ? 'Signing in…' : 'Sign in'}
+        </Button>
+      </form>
+    </Card>
+  );
+}
+
+function AdminCreateAccount({ onDone }: { onDone: () => void }) {
+  const [form, setForm] = useState({ name: '', email: '', password: '', masterPassword: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    const res = await createAdmin({ data: form });
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setDone(true);
+  };
+
+  if (done) {
+    return (
+      <Card className="space-y-3 p-5 text-center">
+        <CheckCircle2 className="mx-auto h-7 w-7 text-trust" />
+        <p className="text-sm">Admin account created.</p>
+        <Button variant="outline" onClick={onDone} className="w-full">
+          Sign in now
+        </Button>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="space-y-3 p-5">
+      <p className="text-xs text-muted-foreground">
+        Creating a new admin account requires the master admin password (the one set in Vercel's
+        environment variables) — this keeps admin access from being open to anyone who finds this page.
+      </p>
+      <form onSubmit={handleSubmit} className="space-y-3 text-sm">
+        <div className="space-y-1.5">
+          <Label htmlFor="new-admin-name">Your name</Label>
+          <Input id="new-admin-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="new-admin-email">Email</Label>
+          <Input
+            id="new-admin-email"
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="new-admin-password">Password</Label>
+          <Input
+            id="new-admin-password"
+            type="password"
+            required
+            minLength={6}
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="master-password">Master admin password</Label>
+          <Input
+            id="master-password"
+            type="password"
+            required
+            value={form.masterPassword}
+            onChange={(e) => setForm({ ...form, masterPassword: e.target.value })}
+          />
+        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <Button type="submit" disabled={submitting} className="w-full">
+          {submitting ? 'Creating…' : 'Create admin account'}
+        </Button>
+      </form>
+    </Card>
+  );
+}
+
+function AdminControlCenter({
+  admin,
+  onLogout,
+  onAuthFailed,
+}: {
+  admin: AdminAccount;
+  onLogout: () => void;
+  onAuthFailed: () => void;
+}) {
   const [loading, setLoading] = useState(true);
   const [breeders, setBreeders] = useState<BreederAccount[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [buyers, setBuyers] = useState<BuyerAccount[]>([]);
   const [flagged, setFlagged] = useState<ChatMessage[]>([]);
 
+  const getToken = () => localStorage.getItem(TOKEN_KEY) ?? '';
+
   const refreshAll = async () => {
+    const token = getToken();
     const [breedersRes, petsData, buyersRes, flaggedRes] = await Promise.all([
-      listBreeders({ data: { password } }),
+      listBreeders({ data: { token } }),
       listPets(),
-      listBuyersForAdmin({ data: { password } }),
-      listFlaggedMessages({ data: { password } }),
+      listBuyersForAdmin({ data: { token } }),
+      listFlaggedMessages({ data: { token } }),
     ]);
     if (!breedersRes.ok || !buyersRes.ok || !flaggedRes.ok) {
       onAuthFailed();
@@ -157,12 +310,18 @@ function AdminControlCenter({ password, onAuthFailed }: { password: string; onAu
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="h-6 w-6 text-warm" />
-          <h1 className="text-2xl font-bold tracking-tight">Admin control center</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-6 w-6 text-warm" />
+            <h1 className="text-2xl font-bold tracking-tight">Admin control center</h1>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">Supervise breeders, listings, escrow, buyers, and chat across the platform.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Signed in as {admin.name} ({admin.email})</p>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">Supervise breeders, listings, escrow, buyers, and chat across the platform.</p>
+        <Button variant="outline" size="sm" onClick={onLogout}>
+          Log out
+        </Button>
       </div>
 
       <Tabs defaultValue="overview">
@@ -194,7 +353,7 @@ function AdminControlCenter({ password, onAuthFailed }: { password: string; onAu
         </TabsContent>
 
         <TabsContent value="breeders" className="mt-6">
-          <BreedersTab breeders={breeders} password={password} onChanged={refreshAll} />
+          <BreedersTab breeders={breeders} getToken={getToken} onChanged={refreshAll} />
         </TabsContent>
 
         <TabsContent value="listings" className="mt-6">
@@ -258,11 +417,11 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
 
 function BreedersTab({
   breeders,
-  password,
+  getToken,
   onChanged,
 }: {
   breeders: BreederAccount[];
-  password: string;
+  getToken: () => string;
   onChanged: () => void;
 }) {
   const [search, setSearch] = useState('');
@@ -282,14 +441,14 @@ function BreedersTab({
 
   const handleApprove = async (id: string) => {
     setBusyId(id);
-    await approveBreeder({ data: { id, password } });
+    await approveBreeder({ data: { id, token: getToken() } });
     await onChanged();
     setBusyId(null);
   };
 
   const handleReject = async (id: string) => {
     setBusyId(id);
-    await rejectBreeder({ data: { id, password } });
+    await rejectBreeder({ data: { id, token: getToken() } });
     await onChanged();
     setBusyId(null);
   };
