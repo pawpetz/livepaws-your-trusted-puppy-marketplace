@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { createServerFn } from '@tanstack/react-start';
+import { hashPassword, verifyPassword } from './password';
 
 /* ------------------------------------------------------------
    Buyer accounts. Unlike breeders, there's no approval queue —
@@ -39,7 +40,8 @@ export const signupBuyer = createServerFn({ method: 'POST' })
       return { ok: false as const, error: 'An account with this email already exists.' };
     }
     const id = crypto.randomUUID();
-    await sql`INSERT INTO buyers (id, name, email, password) VALUES (${id}, ${data.name}, ${data.email}, ${data.password})`;
+    const hashed = await hashPassword(data.password);
+    await sql`INSERT INTO buyers (id, name, email, password) VALUES (${id}, ${data.name}, ${data.email}, ${hashed})`;
     const token = crypto.randomUUID();
     await sql`INSERT INTO buyer_sessions (token, buyer_id) VALUES (${token}, ${id})`;
     return { ok: true as const, token, buyer: { id, name: data.name, email: data.email } };
@@ -51,7 +53,7 @@ export const loginBuyer = createServerFn({ method: 'POST' })
     const sql = getSql();
     const rows = (await sql`SELECT * FROM buyers WHERE lower(email) = lower(${data.email})`) as BuyerRow[];
     const account = rows[0];
-    if (!account || account.password !== data.password) {
+    if (!account || !(await verifyPassword(data.password, account.password))) {
       return { ok: false as const, error: 'Incorrect email or password.' };
     }
     const token = crypto.randomUUID();
