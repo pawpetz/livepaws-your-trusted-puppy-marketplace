@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Radio, Video, VideoOff, Mic, MicOff, Circle, Download } from 'lucide-react';
+import { Radio, Video, VideoOff, Mic, MicOff, Circle, Download, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { getAgoraToken } from '@/lib/agora';
@@ -41,6 +41,8 @@ export function AgoraBroadcast({
   const [connecting, setConnecting] = useState(false);
   const [recordSession, setRecordSession] = useState(false);
   const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
+  const [cameraCount, setCameraCount] = useState(0);
+  const [flipping, setFlipping] = useState(false);
   const videoRef = useRef<HTMLDivElement>(null);
 
   const clientRef = useRef<any>(null);
@@ -74,6 +76,13 @@ export function AgoraBroadcast({
       localTracksRef.current = [micTrack, camTrack];
       setIsLive(true);
       onLive?.();
+
+      try {
+        const cameras = await AgoraRTC.getCameras();
+        setCameraCount(cameras.length);
+      } catch {
+        // Device enumeration failing shouldn't block going live
+      }
 
       if (recordSession && typeof MediaRecorder !== 'undefined') {
         try {
@@ -118,6 +127,7 @@ export function AgoraBroadcast({
       clientRef.current = null;
     }
     setIsLive(false);
+    setCameraCount(0);
     onOffline?.();
   };
 
@@ -148,6 +158,39 @@ export function AgoraBroadcast({
     if (camTrack) {
       camTrack.setEnabled(!camOn);
       setCamOn(!camOn);
+    }
+  };
+
+  // Switches to the next available camera — on a phone this is
+  // typically front/back; on a computer with multiple webcams it
+  // cycles through those instead. Unpublishes the old video track and
+  // publishes a fresh one from the next device, without interrupting
+  // the audio track or the overall connection.
+  const flipCamera = async () => {
+    const client = clientRef.current;
+    const oldCamTrack = localTracksRef.current[1];
+    if (!client || !oldCamTrack || flipping) return;
+    setFlipping(true);
+    try {
+      const AgoraRTC = (await import('agora-rtc-sdk-ng')).default;
+      const cameras = await AgoraRTC.getCameras();
+      if (cameras.length < 2) return;
+      const currentDeviceId = oldCamTrack.getMediaStreamTrack().getSettings().deviceId;
+      const currentIndex = cameras.findIndex((c) => c.deviceId === currentDeviceId);
+      const nextDevice = cameras[(currentIndex + 1) % cameras.length];
+
+      const newCamTrack = await AgoraRTC.createCameraVideoTrack({ cameraId: nextDevice.deviceId });
+      await client.unpublish(oldCamTrack);
+      oldCamTrack.stop();
+      oldCamTrack.close();
+      await client.publish(newCamTrack);
+      if (!camOn) newCamTrack.setEnabled(false);
+      if (videoRef.current) newCamTrack.play(videoRef.current);
+      localTracksRef.current[1] = newCamTrack;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not switch cameras.');
+    } finally {
+      setFlipping(false);
     }
   };
 
@@ -197,6 +240,11 @@ export function AgoraBroadcast({
             <Button size="sm" variant="outline" onClick={toggleCam}>
               {camOn ? <Video size={14} /> : <VideoOff size={14} />}
             </Button>
+            {cameraCount > 1 && (
+              <Button size="sm" variant="outline" onClick={flipCamera} disabled={flipping}>
+                <RefreshCw size={14} className={flipping ? 'animate-spin' : ''} /> {flipping ? 'Switching…' : 'Flip camera'}
+              </Button>
+            )}
             <Button size="sm" variant="destructive" onClick={stopLive}>
               End live stream
             </Button>
