@@ -1,11 +1,15 @@
 import type { ReactNode } from "react";
 import { BottomNav, TopNav } from "./site-nav";
+import { SiteFooter } from "./site-footer";
 
 export function SiteShell({ children, hideBottomNav = false }: { children: ReactNode; hideBottomNav?: boolean }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <TopNav />
-      <main className={hideBottomNav ? "" : "pb-20 md:pb-0"}>{children}</main>
+      <main className={"flex-1 " + (hideBottomNav ? "" : "pb-20 md:pb-0")}>
+        {children}
+        <SiteFooter />
+      </main>
       {!hideBottomNav && <BottomNav />}
     </div>
   );
