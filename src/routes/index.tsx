@@ -3,7 +3,7 @@ import { ArrowRight, BadgeCheck, Heart, MessageSquare, ShieldCheck, Video, PawPr
 import { SiteShell, LiveBadge, VerifiedBadge } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { listApprovedBreeders, listLiveBreeders } from "@/lib/auth-store";
+import { licenseLabel, listApprovedBreeders, listLiveBreeders } from "@/lib/auth-store";
 import { listPets } from "@/lib/pets-store";
 
 export const Route = createFileRoute("/")({
@@ -112,7 +112,7 @@ function Landing() {
                   <div className="absolute inset-x-4 bottom-4 text-white">
                     <p className="text-xs uppercase tracking-wide opacity-80">Featured stream</p>
                     <h3 className="mt-1 text-lg font-semibold">{featured.businessName}</h3>
-                    <p className="text-sm opacity-90">USDA #{featured.usdaLicense}</p>
+                    <p className="text-sm opacity-90">{licenseLabel(featured)}</p>
                   </div>
                 </div>
               </Link>
@@ -166,7 +166,7 @@ function Landing() {
                     <VerifiedBadge />
                   </div>
                   <h3 className="mt-1 line-clamp-1 font-semibold">{entry.businessName}</h3>
-                  <p className="text-sm text-muted-foreground">USDA #{entry.usdaLicense}</p>
+                  <p className="text-sm text-muted-foreground">{licenseLabel(entry)}</p>
                 </div>
               </Link>
             ))}
@@ -246,7 +246,7 @@ function Landing() {
                       <p className="truncate font-semibold">{b.businessName}</p>
                       <BadgeCheck className="h-4 w-4 shrink-0 text-trust" />
                     </div>
-                    <p className="text-xs text-muted-foreground">USDA #{b.usdaLicense}</p>
+                    <p className="text-xs text-muted-foreground">{licenseLabel(b)}</p>
                   </div>
                 </div>
                 <div className="mt-4 flex items-center justify-between text-sm">
