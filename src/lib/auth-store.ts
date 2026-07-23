@@ -13,11 +13,23 @@ import { createServerFn } from '@tanstack/react-start';
 
 export type BreederStatus = 'pending' | 'approved' | 'rejected';
 
+export type LicenseType = 'usda' | 'state' | 'none';
+
+export function licenseLabel(breeder: { licenseType: LicenseType; usdaLicense: string }): string {
+  if (breeder.licenseType === 'usda') return `USDA #${breeder.usdaLicense}`;
+  if (breeder.licenseType === 'state') return `State permit #${breeder.usdaLicense}`;
+  return 'Hobby breeder (no formal license)';
+}
+
 export type BreederAccount = {
   id: string;
   businessName: string;
+  fullName: string;
   email: string;
-  usdaLicense: string;
+  phone: string;
+  location: string;
+  licenseType: LicenseType;
+  usdaLicense: string; // license NUMBER, regardless of type — name kept for now to avoid a bigger migration
   status: BreederStatus;
   appliedAt: string;
   isLive: boolean;
@@ -36,8 +48,12 @@ function getSql() {
 type BreederRow = {
   id: string;
   business_name: string;
+  full_name: string;
   email: string;
   password: string;
+  phone: string;
+  location: string;
+  license_type: string;
   usda_license: string;
   status: string;
   applied_at: string;
@@ -48,7 +64,11 @@ function publicAccount(r: BreederRow): BreederAccount {
   return {
     id: r.id,
     businessName: r.business_name,
+    fullName: r.full_name,
     email: r.email,
+    phone: r.phone,
+    location: r.location,
+    licenseType: (r.license_type as LicenseType) ?? 'usda',
     usdaLicense: r.usda_license,
     status: r.status as BreederStatus,
     appliedAt: r.applied_at,
@@ -64,7 +84,18 @@ function slugify(name: string) {
 }
 
 export const applyAsBreeder = createServerFn({ method: 'POST' })
-  .validator((input: { businessName: string; email: string; password: string; usdaLicense: string }) => input)
+  .validator(
+    (input: {
+      businessName: string;
+      fullName: string;
+      email: string;
+      password: string;
+      phone: string;
+      location: string;
+      licenseType: LicenseType;
+      licenseNumber: string;
+    }) => input,
+  )
   .handler(async ({ data }) => {
     const sql = getSql();
     const existing = (await sql`SELECT id FROM breeders WHERE lower(email) = lower(${data.email})`) as { id: string }[];
@@ -74,8 +105,8 @@ export const applyAsBreeder = createServerFn({ method: 'POST' })
     const id = crypto.randomUUID();
     const appliedAt = new Date().toISOString().slice(0, 10);
     await sql`
-      INSERT INTO breeders (id, business_name, email, password, usda_license, status, applied_at)
-      VALUES (${id}, ${data.businessName}, ${data.email}, ${data.password}, ${data.usdaLicense}, 'pending', ${appliedAt})
+      INSERT INTO breeders (id, business_name, full_name, email, password, phone, location, license_type, usda_license, status, applied_at)
+      VALUES (${id}, ${data.businessName}, ${data.fullName}, ${data.email}, ${data.password}, ${data.phone}, ${data.location}, ${data.licenseType}, ${data.licenseNumber}, 'pending', ${appliedAt})
     `;
     return { ok: true as const, id };
   });
