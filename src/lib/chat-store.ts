@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { createServerFn } from '@tanstack/react-start';
+import { verifyAdminToken } from './admin-auth';
 
 /* ------------------------------------------------------------
    Real shared live chat. Messages are stored in Postgres and
@@ -118,14 +119,12 @@ export const unpinMessage = createServerFn({ method: 'POST' })
   });
 
 // Admin-only: every flagged message across every stream, for moderation.
-// Password-checked server-side, same pattern as the other admin functions.
+// Protected by a real admin session token, same pattern as the other
+// admin functions.
 export const listFlaggedMessages = createServerFn({ method: 'POST' })
-  .validator((input: { password: string }) => input)
+  .validator((input: { token: string }) => input)
   .handler(async ({ data }) => {
-    const expected = process.env.ADMIN_PASSWORD;
-    if (!expected || data.password !== expected) {
-      return { ok: false as const, error: 'Incorrect password.' };
-    }
+    if (!(await verifyAdminToken(data.token))) return { ok: false as const, error: 'Not authorized.' };
     const sql = getSql();
     const rows = (await sql`
       SELECT * FROM chat_messages WHERE flagged = true ORDER BY created_at DESC LIMIT 200
