@@ -1,6 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 import { createServerFn } from '@tanstack/react-start';
 import { hashPassword, verifyPassword } from './password';
+import { verifyAdminToken } from './admin-auth';
 
 /* ------------------------------------------------------------
    Buyer accounts. Unlike breeders, there's no approval queue —
@@ -81,15 +82,12 @@ export const logoutBuyer = createServerFn({ method: 'POST' })
     return { ok: true };
   });
 
-// Admin-only: full buyer directory. Password-checked server-side, same
-// pattern as the breeder admin functions in auth-store.ts.
+// Admin-only: full buyer directory. Protected by a real admin session
+// token now, same pattern as the breeder admin functions in auth-store.ts.
 export const listBuyersForAdmin = createServerFn({ method: 'POST' })
-  .validator((input: { password: string }) => input)
+  .validator((input: { token: string }) => input)
   .handler(async ({ data }) => {
-    const expected = process.env.ADMIN_PASSWORD;
-    if (!expected || data.password !== expected) {
-      return { ok: false as const, error: 'Incorrect password.' };
-    }
+    if (!(await verifyAdminToken(data.token))) return { ok: false as const, error: 'Not authorized.' };
     const sql = getSql();
     const rows = (await sql`SELECT * FROM buyers ORDER BY name`) as BuyerRow[];
     return { ok: true as const, buyers: rows.map((r) => publicBuyer(r)) };
