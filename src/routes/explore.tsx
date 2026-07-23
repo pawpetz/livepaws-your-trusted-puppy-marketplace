@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { PawPrint, Search, ShieldCheck, CalendarClock } from "lucide-react";
+import { PawPrint, Search, ShieldCheck, CalendarClock, MapPin } from "lucide-react";
 import { SiteShell, LiveBadge, VerifiedBadge } from "@/components/site-shell";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,8 +21,9 @@ import { listPets, type Pet } from "@/lib/pets-store";
 type CategoryFilter = "all" | Species;
 
 export const Route = createFileRoute("/explore")({
-  validateSearch: (search: Record<string, unknown>): { species?: Species } => ({
+  validateSearch: (search: Record<string, unknown>): { species?: Species; q?: string } => ({
     species: search.species === "dog" || search.species === "cat" ? search.species : undefined,
+    q: typeof search.q === "string" ? search.q : undefined,
   }),
   head: () => ({
     meta: [
@@ -49,11 +50,12 @@ function speciesOf(pet: Pet): Species {
 }
 
 function Explore() {
-  const { species } = Route.useSearch();
+  const { species, q } = Route.useSearch();
   const { liveBreeders, allPets } = Route.useLoaderData();
   const [category, setCategory] = useState<CategoryFilter>(species ?? "all");
   const [breed, setBreed] = useState<string>("all");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(q ?? "");
+  const [location, setLocation] = useState("");
 
   const onCategory = (id: CategoryFilter) => {
     setCategory(id);
@@ -70,20 +72,22 @@ function Explore() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const loc = location.trim().toLowerCase();
     return entries.filter((entry) => {
       if (q && !entry.businessName.toLowerCase().includes(q) && !entry.pets.some((p) => p.breed.toLowerCase().includes(q))) {
         return false;
       }
-      // No filter applied — show every live breeder, even ones with nothing listed yet.
-      if (category === "all" && breed === "all") return true;
-      // Otherwise, only show breeders with at least one matching available pet.
+      const hasPetFilter = category !== "all" || breed !== "all" || !!loc;
+      if (!hasPetFilter) return true;
+      // Every active filter must be satisfied by the SAME pet, not just any pet matching any one filter.
       return entry.pets.some((p) => {
         if (category !== "all" && speciesOf(p) !== category) return false;
         if (breed !== "all" && p.breed !== breed) return false;
+        if (loc && !p.location.toLowerCase().includes(loc)) return false;
         return true;
       });
     });
-  }, [entries, category, breed, search]);
+  }, [entries, category, breed, search, location]);
 
   return (
     <SiteShell>
@@ -149,6 +153,15 @@ function Explore() {
                 )}
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 sm:w-56">
+              <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <Input
+                placeholder="Location (city, state)…"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -204,6 +217,11 @@ function Explore() {
                         <p className="flex items-center gap-1 text-xs text-muted-foreground">
                           <ShieldCheck className="h-3 w-3" /> USDA #{entry.usdaLicense}
                         </p>
+                        {cover?.location && (
+                          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" /> {cover.location}
+                          </p>
+                        )}
                       </div>
                     </Link>
                   );
