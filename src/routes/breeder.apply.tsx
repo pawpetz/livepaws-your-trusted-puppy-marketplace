@@ -60,7 +60,16 @@ function BreederApplyPage() {
 }
 
 function ApplyForm({ onDone }: { onDone: () => void }) {
-  const [form, setForm] = useState({ businessName: '', email: '', password: '', usdaLicense: '' });
+  const [form, setForm] = useState({
+    businessName: '',
+    fullName: '',
+    email: '',
+    password: '',
+    phone: '',
+    location: '',
+    licenseType: 'usda' as 'usda' | 'state' | 'none',
+    licenseNumber: '',
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -84,8 +93,7 @@ function ApplyForm({ onDone }: { onDone: () => void }) {
         <CheckCircle2 className="mx-auto h-8 w-8 text-trust" />
         <h2 className="font-semibold">Application submitted</h2>
         <p className="text-sm text-muted-foreground">
-          We'll review your USDA license and business details before your dashboard goes live. This
-          usually takes 1–2 business days.
+          We'll review your details before your dashboard goes live. This usually takes 1–2 business days.
         </p>
         <Button variant="outline" onClick={onDone} className="w-full">
           I'll sign in once approved
@@ -108,13 +116,46 @@ function ApplyForm({ onDone }: { onDone: () => void }) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="apply-email">Email</Label>
+          <Label htmlFor="apply-fullname">Your full name</Label>
           <Input
-            id="apply-email"
-            type="email"
+            id="apply-fullname"
             required
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="e.g. Jamie Oakwood"
+            value={form.fullName}
+            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="apply-email">Email</Label>
+            <Input
+              id="apply-email"
+              type="email"
+              required
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="apply-phone">Phone number</Label>
+            <Input
+              id="apply-phone"
+              type="tel"
+              required
+              placeholder="e.g. 555-201-4432"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="apply-location">Location (city, state)</Label>
+          <Input
+            id="apply-location"
+            required
+            placeholder="e.g. Bend, OR"
+            value={form.location}
+            onChange={(e) => setForm({ ...form, location: e.target.value })}
           />
         </div>
         <div className="space-y-1.5">
@@ -128,16 +169,47 @@ function ApplyForm({ onDone }: { onDone: () => void }) {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="apply-license">USDA license #</Label>
-          <Input
-            id="apply-license"
-            required
-            placeholder="e.g. 22-B-0087"
-            value={form.usdaLicense}
-            onChange={(e) => setForm({ ...form, usdaLicense: e.target.value })}
-          />
+
+        <div className="space-y-2 rounded-xl border border-border bg-secondary/30 p-3">
+          <Label className="block text-muted-foreground">Licensing</Label>
+          <p className="text-xs text-muted-foreground">
+            Not every breeder needs a USDA license — it's typically only required above a certain sale
+            volume. Tell us honestly what applies; we verify this during review either way.
+          </p>
+          <div className="space-y-1.5">
+            {[
+              { value: 'usda', label: 'USDA licensed' },
+              { value: 'state', label: 'State-licensed only' },
+              { value: 'none', label: "Not currently licensed (hobby breeder)" },
+            ].map((opt) => (
+              <label key={opt.value} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="licenseType"
+                  value={opt.value}
+                  checked={form.licenseType === opt.value}
+                  onChange={() => setForm({ ...form, licenseType: opt.value as typeof form.licenseType })}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          {form.licenseType !== 'none' && (
+            <div className="space-y-1.5 pt-1">
+              <Label htmlFor="apply-license">
+                {form.licenseType === 'usda' ? 'USDA license #' : 'State license/permit #'}
+              </Label>
+              <Input
+                id="apply-license"
+                required
+                placeholder={form.licenseType === 'usda' ? 'e.g. 22-B-0087' : 'e.g. state permit number'}
+                value={form.licenseNumber}
+                onChange={(e) => setForm({ ...form, licenseNumber: e.target.value })}
+              />
+            </div>
+          )}
         </div>
+
         {error && <p className="text-xs text-destructive">{error}</p>}
         <Button type="submit" disabled={submitting} className="w-full">
           {submitting ? 'Submitting…' : 'Submit application'}
