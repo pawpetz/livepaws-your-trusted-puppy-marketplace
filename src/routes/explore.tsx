@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { CAT_BREEDS, DOG_BREEDS, type Species } from "@/lib/mock-data";
-import { listLiveBreeders } from "@/lib/auth-store";
+import { licenseLabel, listLiveBreeders } from "@/lib/auth-store";
 import { listPets, type Pet } from "@/lib/pets-store";
 
 type CategoryFilter = "all" | Species;
@@ -215,7 +215,7 @@ function Explore() {
                         </div>
                         <h3 className="mt-1 line-clamp-1 font-semibold">{entry.businessName}</h3>
                         <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <ShieldCheck className="h-3 w-3" /> USDA #{entry.usdaLicense}
+                          <ShieldCheck className="h-3 w-3" /> {licenseLabel(entry)}
                         </p>
                         {cover?.location && (
                           <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
