@@ -12,7 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { AgoraViewer } from '@/components/agora-viewer';
-import { getBreederBySlug } from '@/lib/auth-store';
+import { getBreederBySlug, licenseLabel } from '@/lib/auth-store';
 import { listPets, type Pet } from '@/lib/pets-store';
 import { listMessages, sendMessage, type ChatMessage } from '@/lib/chat-store';
 import { getSessionBuyer, type BuyerAccount } from '@/lib/buyer-auth';
@@ -112,7 +112,7 @@ function LiveStreamPage() {
               </span>
             </div>
             <h1 className="text-2xl font-extrabold text-white md:text-3xl">{breeder.businessName}</h1>
-            <p className="mt-1 text-sm text-gray-400">Live nursery cam · USDA #{breeder.usdaLicense}</p>
+            <p className="mt-1 text-sm text-gray-400">Live nursery cam · {licenseLabel(breeder)}</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -150,7 +150,7 @@ function LiveStreamPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white">{breeder.businessName}</h3>
-                    <p className="text-xs text-gray-400">Verified · USDA license #{breeder.usdaLicense}</p>
+                    <p className="text-xs text-gray-400">Verified · {licenseLabel(breeder)}</p>
                   </div>
                 </div>
               </div>
