@@ -112,10 +112,10 @@ export const TopNav: React.FC = () => {
                 {activeDropdown === 'breeders' && (
                   <div className="absolute top-full left-0 mt-1 w-60 bg-white rounded-xl shadow-lg border border-gray-100 p-2 z-50">
                     <a href="/breeder/apply" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
-                      <Briefcase size={18} className="text-indigo-500" /> Apply for Verification
+                      <Briefcase size={18} className="text-indigo-500" /> Register as a Breeder
                     </a>
-                    <a href="/breeder/dashboard" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
-                      <LayoutDashboard size={18} className="text-violet-500" /> Breeder Studio Portal
+                    <a href="/breeder/apply?mode=signin" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg">
+                      <LayoutDashboard size={18} className="text-violet-500" /> Login as a Breeder
                     </a>
                   </div>
                 )}
