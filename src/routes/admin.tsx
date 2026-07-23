@@ -159,7 +159,14 @@ function AdminQueue({ password, onAuthFailed }: { password: string; onAuthFailed
                 <Card key={b.id} className="flex flex-col items-start justify-between gap-3 p-4 sm:flex-row sm:items-center">
                   <div>
                     <p className="font-semibold">{b.businessName}</p>
-                    <p className="text-xs text-muted-foreground">{b.email} · USDA #{b.usdaLicense}</p>
+                    <p className="text-xs text-muted-foreground">Contact: {b.fullName}</p>
+                    <p className="text-xs text-muted-foreground">{b.email} · {b.phone}</p>
+                    <p className="text-xs text-muted-foreground">{b.location}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {b.licenseType === 'usda' && `USDA license #${b.usdaLicense}`}
+                      {b.licenseType === 'state' && `State license/permit #${b.usdaLicense}`}
+                      {b.licenseType === 'none' && 'No formal license (hobby breeder)'}
+                    </p>
                     <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Clock className="h-3 w-3" /> Applied {b.appliedAt}
                     </p>
